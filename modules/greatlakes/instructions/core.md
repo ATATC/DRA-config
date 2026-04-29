@@ -40,22 +40,12 @@ srun --partition=spgpu2 --account={{GL_ACCOUNT_OWNED}} --gres=gpu:1 --mem=60G --
 |---|---|---|---|
 | Home | `~/` | ~80 GiB | None |
 | Turbo | `/nfs/turbo/si-qmei/${USER}/` | 10 TB shared | None |
-| Scratch | `/scratch/<account>/<project>/<user>/` | 10 TB / 1M inodes per account | **60 days** untouched |
+| Scratch | `/scratch/<account>/<project>/<user>/` | 10 TB / 1M inodes per account | 60 days untouched |
 
-Use turbo for persistent large files. Use scratch for temporary high-performance I/O during jobs (stage in from turbo, copy results back).
+Use turbo for persistent large files. Use scratch for temporary high-performance I/O during jobs.
 
 ## Key Constraints
 
-- L40S memory budget ({{GL_MEMORY_CAP}} GB) is shared across the entire `{{GL_ACCOUNT_OWNED}}` group (~11 members)
-- Estimate ~60 GB memory per L40S GPU when planning requests
-- Use `/slurm-status` skill to check real-time availability before submitting large jobs
-
-## Cross-Cluster Access (optional)
-
-If you also use Lighthouse, run `/connect` to set up and establish the SSH connection. Once connected:
-
-```bash
-# All commands go through the multiplexed SSH socket — no re-auth needed
-ssh lighthouse "sinfo"
-ssh lighthouse "squeue -u $(whoami)"
-```
+- L40S memory budget ({{GL_MEMORY_CAP}} GB) is shared across the entire `{{GL_ACCOUNT_OWNED}}` group.
+- Estimate ~60 GB memory per L40S GPU when planning requests.
+- Use the Slurm status helper before submitting large jobs.

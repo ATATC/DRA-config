@@ -2,17 +2,6 @@
 
 This is the University of Michigan Lighthouse cluster with dedicated {{LH_GPU_TYPE}} GPUs for the group.
 
-## Cross-Cluster Access
-
-If you also use Great Lakes, use the `connect` skill to set up SSH. Once connected:
-
-```bash
-ssh greatlakes "sinfo -p spgpu2"
-ssh greatlakes "squeue -u $(whoami)"
-```
-
-This enables the `slurm-status` skill to check both clusters and `submit-experiment` to submit remotely.
-
 ## Accounts
 
 | Account | Partitions | GPU Type | Group Allocation |
@@ -46,6 +35,6 @@ srun --partition={{LH_PARTITION}} --account={{LH_ACCOUNT}} --gres=gpu:1 --mem=80
 
 ## Key Constraints
 
-- Only {{LH_GPU_COUNT}} {{LH_GPU_TYPE}} GPUs for the entire group. Coordinate before reserving multiple GPUs.
-- Use the `slurm-status` skill to check real-time availability before submitting jobs.
+- Only {{LH_GPU_COUNT}} {{LH_GPU_TYPE}} GPUs are available for the entire group. Coordinate before reserving multiple GPUs.
+- Use the Slurm status helper before submitting large jobs.
 - For multi-GPU training, consider whether the task truly benefits from parallelism.

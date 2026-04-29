@@ -88,6 +88,44 @@ Run `./uninstall.sh` — removes symlinks, strips the lab config block from `CLA
 
 Codex does not currently use the Claude hook/statusline files directly. The important login-node safety rules are injected into `AGENTS.md`, and the reusable Slurm workflows are installed as Codex skills.
 
+## Source Layout
+
+Instructions are split into a shared core plus thin tool adapters:
+
+```
+shared/
+├── instructions/
+│   ├── core.md                # Tool-agnostic lab facts and policies
+│   ├── claude.md              # Claude-specific invocation and automation notes
+│   └── codex.md               # Codex-specific invocation and safety notes
+├── skills/                    # Shared skills used by both tools where possible
+├── codex/skills/              # Codex-only skill adapters
+├── agents/                    # Claude agents; converted to Codex skills during setup
+├── hooks/                     # Claude-only hooks
+└── settings.json              # Claude-only settings template
+
+modules/<cluster>/
+├── instructions/
+│   ├── core.md                # Cluster facts shared by both tools
+│   ├── claude.md              # Claude-specific cluster notes
+│   └── codex.md               # Codex-specific cluster notes
+└── skills/                    # Generated skill templates, such as slurm-status
+```
+
+### Design Tradeoffs
+
+This repo intentionally uses a **core + adapter** design:
+
+- Shared facts live once in `core.md`, which reduces drift between Claude Code and Codex.
+- Tool-specific behavior lives in adapter files, so Claude can keep hooks, statusline, slash commands, and agents while Codex uses `AGENTS.md` and skills.
+- The installer is slightly more complex because it composes multiple files, but the source tree makes ownership clearer.
+
+Alternatives considered:
+
+- **Duplicate full docs per tool**: simplest installer, but storage/Slurm guidance would drift quickly.
+- **One universal doc for both tools**: least duplication, but it would be cluttered with syntax that only one tool understands.
+- **Fully separate Claude and Codex trees**: very clear per tool, but shared lab policy would be copied in two places.
+
 ## Skills and Agents
 
 **Claude skills** (`/command`) are interactive — they run in the main conversation and can ask follow-up questions. Invoke them with `/skill-name`.
@@ -129,13 +167,13 @@ Codex does not currently use the Claude hook/statusline files directly. The impo
 
 Improvements welcome — open a PR against `main`. Some ideas for what to contribute:
 
-- **New module**: add a cluster (e.g., `modules/armis2/`) with its own `CLAUDE.md`, optional `AGENTS.md`, and optional skill templates
+- **New module**: add a cluster (e.g., `modules/armis2/`) with `instructions/core.md`, optional tool adapters, and optional skill templates
 - **New skill or agent**: add to `shared/skills/` or `shared/agents/`
 - **Better defaults**: tweak permissions, settings, or best-practice guidance
 
 ### Adding a new module
 
-1. Create `modules/<name>/CLAUDE.md` and optionally `modules/<name>/AGENTS.md` (use `{{VAR}}` placeholders for user-specific values)
+1. Create `modules/<name>/instructions/core.md` and optionally `claude.md` / `codex.md` adapters (use `{{VAR}}` placeholders for user-specific values)
 2. Optionally add `modules/<name>/skills/<skill-name>/SKILL.md.template`
 3. Add the module name to the `case` blocks in `setup.sh`
 4. Define template variables and add prompts in `setup.sh`

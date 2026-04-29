@@ -348,22 +348,38 @@ expand_vars() {
 }
 
 build_doc_block() {
-    local shared_doc="$1"
-    local module_doc_name="$2"
+    local target="$1"
 
-    local block="$BEGIN_MARKER
-$(cat "$shared_doc")
-$(
+    local block="$BEGIN_MARKER"
+
+    if [[ -f "$SCRIPT_DIR/shared/instructions/core.md" ]]; then
+        block="$block
+$(cat "$SCRIPT_DIR/shared/instructions/core.md")"
+    fi
+
+    if [[ -f "$SCRIPT_DIR/shared/instructions/$target.md" ]]; then
+        block="$block
+
+$(cat "$SCRIPT_DIR/shared/instructions/$target.md")"
+    fi
+
     for module in "${MODULE_LIST[@]}"; do
-        if [[ "$module" != "none" && -f "$SCRIPT_DIR/modules/$module/$module_doc_name" ]]; then
-            echo ""
-            cat "$SCRIPT_DIR/modules/$module/$module_doc_name"
-        elif [[ "$module_doc_name" == "AGENTS.md" && "$module" != "none" && -f "$SCRIPT_DIR/modules/$module/CLAUDE.md" ]]; then
-            echo ""
-            cat "$SCRIPT_DIR/modules/$module/CLAUDE.md"
+        [[ "$module" == "none" ]] && continue
+
+        if [[ -f "$SCRIPT_DIR/modules/$module/instructions/core.md" ]]; then
+            block="$block
+
+$(cat "$SCRIPT_DIR/modules/$module/instructions/core.md")"
+        fi
+
+        if [[ -f "$SCRIPT_DIR/modules/$module/instructions/$target.md" ]]; then
+            block="$block
+
+$(cat "$SCRIPT_DIR/modules/$module/instructions/$target.md")"
         fi
     done
-)
+
+    block="$block
 $END_MARKER"
 
     expand_vars "$block"
@@ -399,13 +415,13 @@ inject_marked_block() {
 if target_enabled claude; then
     info "Injecting lab config into CLAUDE.md..."
     CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
-    inject_marked_block "$CLAUDE_MD" "$(build_doc_block "$SCRIPT_DIR/shared/CLAUDE.md" "CLAUDE.md")" "CLAUDE.md"
+    inject_marked_block "$CLAUDE_MD" "$(build_doc_block claude)" "CLAUDE.md"
 fi
 
 if target_enabled codex; then
     info "Injecting lab config into AGENTS.md..."
     CODEX_AGENTS_MD="$CODEX_DIR/AGENTS.md"
-    inject_marked_block "$CODEX_AGENTS_MD" "$(build_doc_block "$SCRIPT_DIR/shared/AGENTS.md" "AGENTS.md")" "AGENTS.md"
+    inject_marked_block "$CODEX_AGENTS_MD" "$(build_doc_block codex)" "AGENTS.md"
 fi
 
 # --- Generate skill files from templates ---
