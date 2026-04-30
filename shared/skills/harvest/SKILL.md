@@ -1,7 +1,7 @@
 ---
 name: harvest
 description: Discover completed SLURM experiments, collect results, and update experiment documentation.
-argument-hint: [--auto] [experiment-name]
+argument-hint: "[--auto] [experiment-name]"
 allowed-tools: Bash(sacct *), Bash(scontrol *), Bash(squeue *), Bash(ls *), Bash(tail *), Bash(jq *), Bash(hostname *), Bash(date *), Bash(cat *), Bash(find *), Read, Edit, Write, Glob, Grep
 ---
 
