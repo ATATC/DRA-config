@@ -68,10 +68,10 @@ Claude supports hooks/statusline directly. Codex does not, so login-node safety 
 ```bash
 cd ~/lab-claude-config
 git pull
-./setup.sh --targets claude,codex
+./setup.sh --targets <same-targets-you-installed>
 ```
 
-Or ask Claude Code/Codex to read this README and update the lab config for you.
+For example, use `--targets claude` for Claude Code only, `--targets codex` for Codex only, or `--targets claude,codex` if both tools are initialized. Or ask Claude Code/Codex to read this README and update the lab config for you.
 
 ## Uninstalling
 
