@@ -1,101 +1,120 @@
-# Lab Claude Code Configuration
+# Lab Claude Code + Codex Configuration
 
-Shared Claude Code setup for the lab. Provides consistent CLAUDE.md instructions, statusline, settings, skills, and agents across Great Lakes and Lighthouse clusters.
+Shared AI coding setup for the lab. It teaches Claude Code and/or Codex about our Slurm clusters, storage rules, login-node safety, experiment conventions, and reusable HPC workflows.
 
-## Quick Start
+## Recommended Setup
 
-1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code), run `claude`, and log in (`/login`)
-2. Clone this repo and bootstrap the onboard skill:
+1. Run the tool you want to use at least once:
+   - Claude Code: run `claude` and log in with `/login`
+   - Codex: run `codex` and log in
+
+2. Clone this repo:
 
 ```bash
 git clone https://github.com/umich-foreseer/lab-claude-config.git ~/lab-claude-config
-mkdir -p ~/.claude/skills && ln -sf ~/lab-claude-config/shared/skills/onboard ~/.claude/skills/onboard
 ```
 
-Then open Claude Code and type `/onboard` — it will detect your cluster, look up your Slurm accounts, run setup, and help customize your config.
+3. Open Claude Code or Codex and say:
+
+```text
+Read ~/lab-claude-config/README.md and install the lab config for me.
+Configure Claude Code, Codex, or both depending on what is available.
+Detect my cluster, fill in my Slurm accounts, and preserve my personal config.
+```
+
+The assistant should inspect this repo, detect Great Lakes/Lighthouse, write saved setup values, and run `setup.sh`.
+
+## Manual Setup
+
+Use this if you want to run the installer yourself:
+
+```bash
+cd ~/lab-claude-config
+
+# Claude Code only (default)
+./setup.sh --modules greatlakes --targets claude
+
+# Codex only
+./setup.sh --modules greatlakes --targets codex
+
+# Both tools, both clusters
+./setup.sh --modules greatlakes,lighthouse --targets claude,codex
+```
+
+If you are on a cluster login node, `setup.sh` can usually auto-detect modules. Use `--modules` when you want to be explicit.
+
+## What Gets Installed
+
+| Target | Installed config | Reusable workflows |
+|---|---|---|
+| Claude Code | `~/.claude/CLAUDE.md`, generated `settings.json`, statusline, hooks | `~/.claude/skills/*`, `~/.claude/agents/*` |
+| Codex | `~/.codex/AGENTS.md` | `~/.codex/skills/*` |
+
+Shared workflows include:
+
+- `onboard` - interactive setup helper.
+- `slurm-status` - check GPU/resource availability.
+- `slurm-job` - create or modify sbatch scripts.
+- `slurm-debug` - diagnose failed, killed, or pending jobs.
+- `submit-experiment` - submit documented Slurm experiments.
+- `harvest` - collect completed experiment results.
+- `connect` - set up cross-cluster SSH.
+- `slurm-queue`, `slurm-resource`, `slurm-storage` - Claude agents converted into Codex skills where needed.
+
+Claude supports hooks/statusline directly. Codex does not, so login-node safety and tool usage rules are injected into `AGENTS.md` instead.
 
 ## Updating
 
 ```bash
-cd ~/lab-claude-config && git pull
+cd ~/lab-claude-config
+git pull
+./setup.sh --targets <same-targets-you-installed>
 ```
 
-Then run `/onboard` again in Claude Code. It's idempotent and won't re-prompt for values already saved.
+For example, use `--targets claude` for Claude Code only, `--targets codex` for Codex only, or `--targets claude,codex` if both tools are initialized. Or ask Claude Code/Codex to read this README and update the lab config for you.
 
 ## Uninstalling
 
-Run `./uninstall.sh` — removes symlinks, strips the lab config block from CLAUDE.md (your personal content is preserved), and restores backups.
-
-## What Gets Installed
-
-```
-~/.claude/
-├── CLAUDE.md                  # Lab config injected between markers; your content outside markers is preserved
-├── settings.json              # Generated from shared/settings.json + statusline path → symlinked
-├── settings.local.json        # Personal overrides (extra permissions, hooks); merged into settings.json during setup
-├── statusline-command.sh      # Symlinked → shared/statusline-command.sh
-├── skills/
-│   ├── harvest/               # Symlinked → shared/skills/harvest/
-│   ├── onboard/               # Symlinked → shared/skills/onboard/
-│   ├── slurm-debug/           # Symlinked → shared/skills/slurm-debug/
-│   ├── slurm-job/             # Symlinked → shared/skills/slurm-job/
-│   ├── slurm-status/          # Generated from module template → symlinked (cluster-specific)
-│   ├── submit-experiment/     # Symlinked → shared/skills/submit-experiment/
-│   └── connect/               # Symlinked → shared/skills/connect/ (shared across clusters)
-├── hooks/                     # Symlinked → shared/hooks/ (PreToolUse hooks)
-│   └── node-context.sh        # Detects login vs compute node, injects advisory context
-└── agents/
-    ├── slurm-queue.md         # Symlinked → shared/agents/slurm-queue.md
-    ├── slurm-resource.md      # Symlinked → shared/agents/slurm-resource.md
-    └── slurm-storage.md       # Symlinked → shared/agents/slurm-storage.md
+```bash
+cd ~/lab-claude-config
+./uninstall.sh
 ```
 
-## Skills and Agents
+This removes repo-owned symlinks and strips the managed lab block from `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Personal content outside the markers is preserved. Backups are kept under `~/.claude/backups/` and `~/.codex/backups/`.
 
-**Skills** (`/command`) are interactive — they run in the main conversation and can ask follow-up questions. Invoke them with `/skill-name`.
+## Source Layout
 
-| Skill | Description |
-|-------|-------------|
-| `/onboard` | Interactive setup wizard for new lab members |
-| `/submit-experiment` | Submit a SLURM experiment with naming, documentation, and cross-cluster support |
-| `/harvest` | Discover completed experiments, collect results, and update documentation |
-| `/slurm-job` | Create or modify an sbatch job script |
-| `/slurm-debug` | Diagnose why a Slurm job failed or is stuck |
-| `/slurm-status` | Show real-time GPU/resource usage (cluster-specific, generated) |
-| `/connect` | Set up cross-cluster SSH (Great Lakes ↔ Lighthouse) and establish the connection |
+The repo uses a core-plus-adapter design:
 
-**Agents** (`@agent`) are autonomous — they gather data independently and return a report. Invoke them with `@agent-name` or let Claude auto-delegate.
+```text
+shared/instructions/core.md      # Lab facts shared by Claude Code and Codex
+shared/instructions/claude.md    # Claude-specific commands, hooks, agents
+shared/instructions/codex.md     # Codex-specific AGENTS.md and skill guidance
 
-| Agent | Description |
-|-------|-------------|
-| `@slurm-queue` | Overview of your active, pending, and recent jobs |
-| `@slurm-resource` | Reference card of available accounts, partitions, and GPUs |
-| `@slurm-storage` | Scan home directory usage and suggest cleanup |
+modules/<cluster>/instructions/core.md
+modules/<cluster>/instructions/claude.md
+modules/<cluster>/instructions/codex.md
 
-## Hooks
+shared/skills/                   # Shared skills
+shared/codex/skills/             # Codex-only skill adapters
+shared/agents/                   # Claude agents, converted to Codex skills
+shared/hooks/                    # Claude-only hooks
+shared/settings.json             # Claude-only settings template
+```
 
-**Hooks** run automatically before or after tool calls — no user action needed. They never block commands; they only inject advisory context.
+Why this shape:
 
-| Hook | Trigger | Description |
-|------|---------|-------------|
-| `node-context` | `PreToolUse` → `Bash` | Detects login vs compute node and injects context so Claude avoids heavy ops on login nodes |
-
-**Node context details:**
-- **Compute node** (Slurm job detected): reports job ID, GPU count, memory, and partition — confirms heavy ops are safe
-- **Login node** (hostname matches `gl-login`, `lh-login`): warns against heavy operations, suggests `srun`/`sbatch`
-- **Unknown host**: no context added (graceful degradation)
+- Shared cluster/storage policy lives once, so Claude and Codex do not drift.
+- Tool-specific behavior stays in small adapter files.
+- The installer is slightly more compositional, but future tools can be added without duplicating all lab policy.
 
 ## Contributing
 
-Improvements welcome — open a PR against `main`. Some ideas for what to contribute:
+Common changes:
 
-- **New module**: add a cluster (e.g., `modules/armis2/`) with its own `CLAUDE.md` and optional skill templates
-- **New skill or agent**: add to `shared/skills/` or `shared/agents/`
-- **Better defaults**: tweak permissions, settings, or best-practice guidance
+- New cluster: add `modules/<name>/instructions/core.md`, optional `claude.md` / `codex.md`, and optional skill templates.
+- New reusable workflow: add it under `shared/skills/`.
+- Claude-only automation: use `shared/hooks/`, `shared/agents/`, or `shared/settings.json`.
+- Codex-only adaptation: use `shared/codex/`.
 
-### Adding a new module
-
-1. Create `modules/<name>/CLAUDE.md` (use `{{VAR}}` placeholders for user-specific values)
-2. Optionally add `modules/<name>/skills/<skill-name>/SKILL.md.template`
-3. Add the module name to the `case` blocks in `setup.sh`
-4. Define template variables and add prompts in `setup.sh`
+Keep durable lab facts in `core.md`; keep tool syntax in the adapter files.
