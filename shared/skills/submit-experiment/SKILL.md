@@ -1,7 +1,7 @@
 ---
 name: submit-experiment
 description: Submit a SLURM experiment with proper naming, documentation, and cross-cluster support. Reads project context to discover submission infrastructure.
-argument-hint: <job_type> <run_config_or_script> [purpose description]
+argument-hint: "<job_type> <run_config_or_script> [purpose description]"
 allowed-tools: Bash(sbatch:*), Bash(squeue:*), Bash(tail:*), Bash(ssh *), Bash(git *), Bash(ls *), Bash(cat *), Bash(hostname *), Read, Edit, Write, Glob, Grep
 ---
 
