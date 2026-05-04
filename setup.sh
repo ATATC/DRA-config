@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Lab-wide Claude Code / Codex configuration installer
-# Usage: ./setup.sh [--modules greatlakes,lighthouse] [--targets claude,codex] [--non-interactive]
+# Usage: ./setup.sh [--modules greatlakes,lighthouse,fir] [--targets claude,codex] [--non-interactive]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
@@ -52,10 +52,10 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Usage: $0 [--modules greatlakes,lighthouse|none] [--targets claude,codex] [--non-interactive]"
+            echo "Usage: $0 [--modules greatlakes,lighthouse,fir|none] [--targets claude,codex] [--non-interactive]"
             echo ""
             echo "Options:"
-            echo "  --modules           Comma-separated list of modules to enable (greatlakes,lighthouse,none)"
+            echo "  --modules           Comma-separated list of modules to enable (greatlakes,lighthouse,fir,none)"
             echo "                      If not specified, auto-detects based on hostname"
             echo "  --targets           Comma-separated tools to configure (claude,codex). Default: claude"
             echo "  --codex             Shortcut for --targets codex"
@@ -91,6 +91,16 @@ if [[ -z "$MODULES" ]]; then
             MODULES="lighthouse"
         fi
         info "Detected Lighthouse cluster"
+    fi
+
+    # Fir: check Alliance hostname pattern
+    if hostname -f 2>/dev/null | grep -qi "fir\.alliancecan\.ca\|^fir"; then
+        if [[ -n "$MODULES" ]]; then
+            MODULES="$MODULES,fir"
+        else
+            MODULES="fir"
+        fi
+        info "Detected Fir cluster"
     fi
 
     if [[ -z "$MODULES" ]]; then
@@ -218,6 +228,13 @@ for module in "${MODULE_LIST[@]}"; do
             prompt_var "LH_PARTITION" "GPU partition name" "qmei-a100"
             prompt_var "LH_GPU_COUNT" "Group GPU allocation (total GPUs)" "4"
             prompt_var "LH_GPU_TYPE" "GPU type" "A100-SXM4-80GB"
+            ;;
+        fir)
+            info "Configuring Fir module..."
+            prompt_var "FIR_USERNAME" "Slurm username" "$(whoami)"
+            prompt_var "FIR_ACCOUNT" "Alliance GPU account" ""
+            prompt_var "FIR_PARTITION" "GPU partition name" "gpu"
+            prompt_var "FIR_GPU_TYPE" "GPU type / constraint" "h100"
             ;;
         none)
             info "No cluster modules selected."
@@ -463,13 +480,15 @@ fi
 # If both greatlakes and lighthouse are active, use the combined template.
 _has_gl=false
 _has_lh=false
+_has_fir=false
 SLURM_STATUS_GENERATED=false
 for module in "${MODULE_LIST[@]}"; do
     [[ "$module" == "greatlakes" ]] && _has_gl=true
     [[ "$module" == "lighthouse" ]] && _has_lh=true
+    [[ "$module" == "fir" ]] && _has_fir=true
 done
 
-if $_has_gl && $_has_lh; then
+if $_has_gl && $_has_lh && ! $_has_fir; then
     if [[ -f "$SCRIPT_DIR/modules/combined/skills/slurm-status/SKILL.md.template" ]]; then
         info "Generating combined slurm-status skill (Great Lakes + Lighthouse)..."
         mkdir -p "$BUILD_DIR/skills/slurm-status"
@@ -479,7 +498,7 @@ if $_has_gl && $_has_lh; then
         SLURM_STATUS_GENERATED=true
         ok "Generated combined slurm-status skill"
     fi
-elif $_has_gl; then
+elif $_has_gl && ! $_has_lh && ! $_has_fir; then
     if [[ -f "$SCRIPT_DIR/modules/greatlakes/skills/slurm-status/SKILL.md.template" ]]; then
         info "Generating slurm-status skill (Great Lakes)..."
         mkdir -p "$BUILD_DIR/skills/slurm-status"
@@ -489,7 +508,7 @@ elif $_has_gl; then
         SLURM_STATUS_GENERATED=true
         ok "Generated slurm-status skill"
     fi
-elif $_has_lh; then
+elif $_has_lh && ! $_has_gl && ! $_has_fir; then
     if [[ -f "$SCRIPT_DIR/modules/lighthouse/skills/slurm-status/SKILL.md.template" ]]; then
         info "Generating slurm-status skill (Lighthouse)..."
         mkdir -p "$BUILD_DIR/skills/slurm-status"
@@ -499,6 +518,18 @@ elif $_has_lh; then
         SLURM_STATUS_GENERATED=true
         ok "Generated slurm-status skill"
     fi
+elif $_has_fir && ! $_has_gl && ! $_has_lh; then
+    if [[ -f "$SCRIPT_DIR/modules/fir/skills/slurm-status/SKILL.md.template" ]]; then
+        info "Generating slurm-status skill (Fir)..."
+        mkdir -p "$BUILD_DIR/skills/slurm-status"
+        expand_template \
+            "$SCRIPT_DIR/modules/fir/skills/slurm-status/SKILL.md.template" \
+            "$BUILD_DIR/skills/slurm-status/SKILL.md"
+        SLURM_STATUS_GENERATED=true
+        ok "Generated slurm-status skill"
+    fi
+elif $_has_fir || $_has_gl || $_has_lh; then
+    warn "No combined slurm-status skill is defined for the selected module mix: ${MODULE_LIST[*]}"
 fi
 
 # --- Create symlinks ---

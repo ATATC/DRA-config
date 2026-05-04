@@ -1,0 +1,83 @@
+---
+name: slurm-status
+description: Show current GPU and resource usage on Fir, who is using H100 GPUs, and what resources the user can request right now.
+allowed-tools: Bash(sinfo *), Bash(squeue *), Bash(sacctmgr *)
+---
+
+# Fir Slurm Resource Status Report
+
+Run the following commands and synthesize a clear, concise status report for the user.
+
+## User context
+
+- Username: `{{FIR_USERNAME}}`
+- GPU account: `{{FIR_ACCOUNT}}`
+- GPU partition: `{{FIR_PARTITION}}`
+- GPU type / constraint: `{{FIR_GPU_TYPE}}`
+- Available Fir GPU profiles to watch for: full `h100`, `nvidia_h100_80gb_hbm3_3g.40gb`, `nvidia_h100_80gb_hbm3_2g.20gb`, and `nvidia_h100_80gb_hbm3_1g.10gb`
+- Fir is a shared Alliance cluster, so account allocations mainly influence queue priority rather than setting a fixed simultaneous GPU cap.
+
+## Steps
+
+### 1. GPU partition overview
+
+Run:
+```bash
+sinfo -p {{FIR_PARTITION}} -o "%12P %16G %5D %8T %10C %12m" 2>&1
+```
+
+Summarize: partition, GPU or MIG type, total nodes, node states, total vs available CPUs.
+
+### 2. Detailed node usage
+
+Run:
+```bash
+sinfo -p {{FIR_PARTITION}} -N -o "%12N %16G %20C %10e %5T" 2>&1
+```
+
+Summarize how many full GPUs or MIG slices and how much memory are free.
+
+### 3. Who is using GPUs right now
+
+Run:
+```bash
+squeue -p {{FIR_PARTITION}} -t R -o "%.10i %.12u %.16a %.2t %.12M %.4C %8m %b %R" 2>&1
+```
+
+Summarize by user and account: how many GPUs are in use and by whom. Highlight the user's own account (`{{FIR_ACCOUNT}}`) if it appears.
+
+### 4. Pending jobs
+
+Run:
+```bash
+squeue -p {{FIR_PARTITION}} -t PD -o "%.10i %.12u %.16a %.20r %b" 2>&1 | head -30
+```
+
+Summarize: how many jobs are pending, by whom, and why (reason codes).
+
+### 5. User's current jobs
+
+Run:
+```bash
+squeue -u {{FIR_USERNAME}} -o "%.10i %.12P %.20j %.2t %.12M %.4C %8m %b %R" 2>&1
+```
+
+### 6. User account associations
+
+Run:
+```bash
+sacctmgr show association user={{FIR_USERNAME}} format=account%20,partition%20,qos%40 --noheader 2>&1 | head -20
+```
+
+Summarize any Fir-relevant accounts or partitions that appear.
+
+### 7. What can you request right now?
+
+Based on the above data, report:
+- **Available H100 GPUs** on `{{FIR_PARTITION}}`
+- **Available MIG profiles** on `{{FIR_PARTITION}}`, broken down by `3g.40gb`, `2g.20gb`, and `1g.10gb` when visible
+- **Who is currently using the partition** and whether the queue looks busy
+- **A concrete recommended request size** for the next job, with suggested `--constraint`, `--gres`, `--cpus-per-task`, and `--mem`
+- Any obvious blockers such as drained nodes, a deep pending queue, or account mismatch
+
+Present the final report as a clean markdown summary with sections.

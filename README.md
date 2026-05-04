@@ -37,6 +37,9 @@ cd ~/lab-claude-config
 # Codex only
 ./setup.sh --modules greatlakes --targets codex
 
+# Fir only
+./setup.sh --modules fir --targets codex
+
 # Both tools, both clusters
 ./setup.sh --modules greatlakes,lighthouse --targets claude,codex
 ```
