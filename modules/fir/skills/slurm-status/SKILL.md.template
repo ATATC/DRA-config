@@ -16,6 +16,7 @@ Run the following commands and synthesize a clear, concise status report for the
 - GPU type / constraint: `{{FIR_GPU_TYPE}}`
 - Available Fir GPU profiles to watch for: full `h100`, `nvidia_h100_80gb_hbm3_3g.40gb`, `nvidia_h100_80gb_hbm3_2g.20gb`, and `nvidia_h100_80gb_hbm3_1g.10gb`
 - Fir is a shared Alliance cluster, so account allocations mainly influence queue priority rather than setting a fixed simultaneous GPU cap.
+- The assistant should prefer a smoke test first, then use `seff` from a completed job to tune requests downward when possible.
 
 ## Steps
 
@@ -71,13 +72,24 @@ sacctmgr show association user={{FIR_USERNAME}} format=account%20,partition%20,q
 
 Summarize any Fir-relevant accounts or partitions that appear.
 
-### 7. What can you request right now?
+### 7. Efficiency check for a recent completed job
+
+If the user names a completed job ID, or if a recent relevant completed job is known from context, run:
+```bash
+seff <jobid> 2>&1
+```
+
+Summarize CPU efficiency, memory efficiency, elapsed time, and whether the job appears overprovisioned.
+
+### 8. What can you request right now?
 
 Based on the above data, report:
 - **Available H100 GPUs** on `{{FIR_PARTITION}}`
 - **Available MIG profiles** on `{{FIR_PARTITION}}`, broken down by `3g.40gb`, `2g.20gb`, and `1g.10gb` when visible
 - **Who is currently using the partition** and whether the queue looks busy
-- **A concrete recommended request size** for the next job, with suggested `--constraint`, `--gres`, `--cpus-per-task`, and `--mem`
+- **A smoke-test recommendation first** on the smallest feasible profile
+- **A concrete recommended request size** for the actual job, with suggested `--constraint`, `--gres`, `--cpus-per-task`, `--mem`, and `--time`
+- **A tuning note based on `seff`** when a completed job is available
 - Any obvious blockers such as drained nodes, a deep pending queue, or account mismatch
 
 Present the final report as a clean markdown summary with sections.
