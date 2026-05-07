@@ -17,6 +17,16 @@ This is the Digital Research Alliance of Canada Fir cluster, the H100-based succ
 | Fir | `nvidia_h100_80gb_hbm3_2g.20gb` | MIG slice with 20 GB |
 | Fir | `nvidia_h100_80gb_hbm3_1g.10gb` | MIG slice with 10 GB |
 
+## Access Procedure
+
+When working on a local machine rather than an existing Fir login session:
+
+```bash
+ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca
+```
+
+Before starting the SSH login, ask the user for their DUO passcode because the connection flow may prompt for it.
+
 ## Common Submission Patterns
 
 ```bash
