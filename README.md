@@ -1,4 +1,4 @@
-# Lab Claude Code + Codex Configuration
+# Skills for Digital Research Alliance
 
 Shared AI coding setup for the lab. It teaches Claude Code and/or Codex about our Slurm clusters, storage rules,
 login-node safety, experiment conventions, and reusable HPC workflows.
@@ -13,13 +13,13 @@ login-node safety, experiment conventions, and reusable HPC workflows.
 ### Clone this repo:
 
 ```bash
-git clone https://github.com/ATATC/lab-claude-config ~/lab-claude-config
+git clone https://github.com/ATATC/dra-config ~/dra-config
 ```
 
 ### Open Claude Code or Codex and say:
 
 ```text
-Read ~/lab-claude-config/README.md and install the lab config for me.
+Read ~/dra-config/README.md and install the lab config for me.
 Configure Claude Code, Codex, or both depending on what is available.
 Detect my cluster, fill in my Slurm accounts, and preserve my personal config.
 ```
@@ -31,7 +31,7 @@ The assistant should inspect this repo, detect Great Lakes/Lighthouse, write sav
 Use this if you want to run the installer yourself:
 
 ```bash
-cd ~/lab-claude-config
+cd ~/dra-config
 
 # Claude Code only (default)
 ./setup.sh --modules fir --targets claude
@@ -71,7 +71,7 @@ Claude supports hooks/statusline directly. Codex does not, so login-node safety 
 ## Updating
 
 ```bash
-cd ~/lab-claude-config
+cd ~/dra-config
 git pull
 ./setup.sh --targets <same-targets-you-installed>
 ```
@@ -82,7 +82,7 @@ if both tools are initialized. Or ask Claude Code/Codex to read this README and 
 ## Uninstalling
 
 ```bash
-cd ~/lab-claude-config
+cd ~/dra-config
 ./uninstall.sh
 ```
 
