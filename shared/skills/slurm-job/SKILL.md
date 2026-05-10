@@ -18,6 +18,12 @@ If the user points to an existing `.sh` or `.slurm` file (or pastes script conte
 
 Apply the same best practices described below when modifying.
 
+If the injected cluster instructions indicate the job is for **Fir**, override the generic GPU-request pattern in this skill:
+
+- specify the GPU only with `#SBATCH --gpus-per-node=<gpu_type>:<count>`
+- do **not** use `#SBATCH --partition`, `#SBATCH --gres`, or `#SBATCH --constraint` to choose the GPU
+- for Fir MIG jobs, use profiles such as `nvidia_h100_80gb_hbm3_1g.10gb`, `nvidia_h100_80gb_hbm3_2g.20gb`, or `nvidia_h100_80gb_hbm3_3g.40gb` directly in `--gpus-per-node`
+
 ## When creating a new script
 
 ### 1. Gather requirements
@@ -86,6 +92,20 @@ echo "---"
 echo "End: $(date)"
 ```
 
+If the target cluster is **Fir**, use this GPU directive style instead of the generic `--gres` / `--partition` / `--constraint` pattern:
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=<job_name>
+#SBATCH --account=<account>
+#SBATCH --gpus-per-node=<gpu_type>:<count>
+#SBATCH --cpus-per-task=<cpus>
+#SBATCH --mem=<memory>
+#SBATCH --time=<time>
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+```
+
 #### Resource defaults by GPU type
 
 | GPU | Partition | Mem/GPU | CPUs/GPU |
@@ -108,6 +128,8 @@ Scale memory and CPUs proportionally for multi-GPU jobs (e.g., 2 L40S → `--mem
 4. **Environment activation**: Include a commented-out `conda activate` or `module load` line as a reminder. If the user tells you which environment to use, uncomment and fill it in.
 
 5. **Time limit**: Always set `--time`. If the user doesn't specify, suggest a reasonable default and explain they can adjust it. Max is 14 days on most partitions.
+
+5a. **Fir GPU selection rule**: On Fir, do not emit `#SBATCH --partition`, `#SBATCH --gres`, or `#SBATCH --constraint` to choose the GPU type. Use only `#SBATCH --gpus-per-node=<gpu_type>:<count>`.
 
 6. **No home directory output**: If the job writes large outputs (checkpoints, datasets, results), direct them to turbo storage, not `~/`.
 

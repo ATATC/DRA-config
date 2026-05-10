@@ -4,9 +4,9 @@ This is the Digital Research Alliance of Canada Fir cluster, the H100-based succ
 
 ## Accounts
 
-| Account | Partition | GPU Type / Constraint | Notes |
-|---|---|---|---|
-| `{{FIR_ACCOUNT}}` | `{{FIR_PARTITION}}` | `{{FIR_GPU_TYPE}}` | Shared Alliance allocation; priority depends on account and recent usage |
+| Account | GPU Type | Notes |
+|---|---|---|
+| `{{FIR_ACCOUNT}}` | `{{FIR_GPU_TYPE}}` | Shared Alliance allocation; priority depends on account and recent usage |
 
 ## GPU Resources
 
@@ -31,25 +31,25 @@ Before starting the SSH login, ask the user for their DUO passcode because the c
 
 ```bash
 # Smoke test before the real run
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint=nvidia_h100_80gb_hbm3_1g.10gb --gres=gpu:1 --cpus-per-task=2 --mem=16G --time=0:30:00 smoke-test.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node=nvidia_h100_80gb_hbm3_1g.10gb:1 --cpus-per-task=2 --mem=16G --time=0:30:00 smoke-test.sh
 
 # Single full H100
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint={{FIR_GPU_TYPE}} --gres=gpu:1 --cpus-per-task=12 --mem=124G --time=8:00:00 job.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node={{FIR_GPU_TYPE}}:1 --cpus-per-task=12 --mem=124G --time=8:00:00 job.sh
 
 # Multi-GPU full H100
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint={{FIR_GPU_TYPE}} --gres=gpu:4 --cpus-per-task=48 --mem=496G --time=8:00:00 job.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node={{FIR_GPU_TYPE}}:4 --cpus-per-task=48 --mem=496G --time=8:00:00 job.sh
 
 # 40 GB MIG
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint=nvidia_h100_80gb_hbm3_3g.40gb --gres=gpu:1 --cpus-per-task=6 --mem=64G --time=8:00:00 job.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node=nvidia_h100_80gb_hbm3_3g.40gb:1 --cpus-per-task=6 --mem=64G --time=8:00:00 job.sh
 
 # 20 GB MIG
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint=nvidia_h100_80gb_hbm3_2g.20gb --gres=gpu:1 --cpus-per-task=4 --mem=32G --time=8:00:00 job.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node=nvidia_h100_80gb_hbm3_2g.20gb:1 --cpus-per-task=4 --mem=32G --time=8:00:00 job.sh
 
 # 10 GB MIG
-sbatch --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint=nvidia_h100_80gb_hbm3_1g.10gb --gres=gpu:1 --cpus-per-task=2 --mem=16G --time=8:00:00 job.sh
+sbatch --account={{FIR_ACCOUNT}} --gpus-per-node=nvidia_h100_80gb_hbm3_1g.10gb:1 --cpus-per-task=2 --mem=16G --time=8:00:00 job.sh
 
 # Interactive session
-salloc --account={{FIR_ACCOUNT}} --partition={{FIR_PARTITION}} --constraint={{FIR_GPU_TYPE}} --gres=gpu:1 --cpus-per-task=12 --mem=124G --time=4:00:00
+salloc --account={{FIR_ACCOUNT}} --gpus-per-node={{FIR_GPU_TYPE}}:1 --cpus-per-task=12 --mem=124G --time=4:00:00
 srun --pty bash
 
 # After a completed job, inspect efficiency before increasing requests
@@ -67,7 +67,8 @@ seff <jobid>
 ## Key Constraints
 
 - Fir is a shared Alliance cluster. Account allocations affect scheduling priority; they are not a hard simultaneous GPU cap.
-- Fir exposes both full H100s (`h100`) and H100 MIG slices. Match `--constraint` to the smallest profile that fits the workload.
+- Fir exposes both full H100s (`h100`) and H100 MIG slices. Match `--gpus-per-node=<gpu_type>:<count>` to the smallest profile that fits the workload.
+- For Fir SBATCH or `salloc` resource requests, specify GPUs only with `--gpus-per-node`. Do not use `--partition`, `--gres`, or `--constraint` to choose the GPU type.
 - Always run a small smoke test before the full job to catch environment, data-path, and launch issues cheaply.
 - After each completed job, run `seff <jobid>` and trim `--cpus-per-task`, `--mem`, `--time`, and GPU size if the job used substantially less than requested.
 - Scratch is not backed up and old files are purged. Keep durable data in home or project storage.

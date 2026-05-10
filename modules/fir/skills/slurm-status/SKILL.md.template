@@ -17,6 +17,7 @@ Run the following commands and synthesize a clear, concise status report for the
 - Available Fir GPU profiles to watch for: full `h100`, `nvidia_h100_80gb_hbm3_3g.40gb`, `nvidia_h100_80gb_hbm3_2g.20gb`, and `nvidia_h100_80gb_hbm3_1g.10gb`
 - Fir is a shared Alliance cluster, so account allocations mainly influence queue priority rather than setting a fixed simultaneous GPU cap.
 - The assistant should prefer a smoke test first, then use `seff` from a completed job to tune requests downward when possible.
+- For Fir job scripts, the assistant must specify GPU selection with `--gpus-per-node=<gpu_type>:<count>` only, and must not recommend `--partition`, `--gres`, or `--constraint` for GPU selection.
 
 ## Steps
 
@@ -88,7 +89,7 @@ Based on the above data, report:
 - **Available MIG profiles** on `{{FIR_PARTITION}}`, broken down by `3g.40gb`, `2g.20gb`, and `1g.10gb` when visible
 - **Who is currently using the partition** and whether the queue looks busy
 - **A smoke-test recommendation first** on the smallest feasible profile
-- **A concrete recommended request size** for the actual job, with suggested `--constraint`, `--gres`, `--cpus-per-task`, `--mem`, and `--time`
+- **A concrete recommended request size** for the actual job, with suggested `--gpus-per-node`, `--cpus-per-task`, `--mem`, and `--time`
 - **A tuning note based on `seff`** when a completed job is available
 - Any obvious blockers such as drained nodes, a deep pending queue, or account mismatch
 
