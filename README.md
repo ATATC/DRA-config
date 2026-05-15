@@ -54,6 +54,7 @@ explicit.
 
 Shared workflows include:
 
+- `ccdb-clusters` - Alliance-wide cluster mechanics, storage, billing, Python install guidance, and fair-share helper scripts.
 - `onboard` - interactive setup helper.
 - `slurm-status` - check GPU/resource availability.
 - `slurm-job` - create or modify sbatch scripts.
