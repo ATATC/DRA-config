@@ -1,6 +1,6 @@
 ---
 name: slurm-debug
-description: Diagnose why a Slurm job failed, was killed, or is stuck pending. Reads job metadata, logs, and common error patterns to explain what went wrong and how to fix it.
+description: Diagnose why a Slurm job failed, was killed, or is stuck pending. Use when a job fails, OOMs, times out, or won't start — or the user says "my job failed". Reads job metadata, logs, and common error patterns to explain what went wrong and how to fix it.
 allowed-tools: Bash(sacct *), Bash(scontrol *), Bash(squeue *), Bash(sinfo *), Bash(whoami), Bash(hostname *), Bash(tail *), Bash(head *), Bash(cat *), Bash(ls *), Bash(grep *), Bash(wc *), Read, Glob, Grep
 ---
 

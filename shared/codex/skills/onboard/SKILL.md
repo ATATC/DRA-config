@@ -1,6 +1,6 @@
 ---
 name: onboard
-description: One-time setup to get a lab member onto Alliance Canada (DRAC) with the shared Claude Code and/or Codex config. Sets up SSH key access, detects the Slurm allocation account, writes saved values, and runs setup.sh.
+description: One-time setup to get a lab member onto Alliance Canada (DRAC) with the shared Claude Code and/or Codex config. Use when first configuring Claude Code or Codex on a new machine for the cluster. Sets up SSH key access, detects the Slurm allocation account, writes saved values, and runs setup.sh.
 ---
 
 # Alliance Canada Setup — Onboarding (one-time)

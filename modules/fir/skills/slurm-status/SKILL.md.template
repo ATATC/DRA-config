@@ -1,6 +1,6 @@
 ---
 name: slurm-status
-description: Show current GPU and resource usage on Fir, who is using H100 GPUs, and what resources the user can request right now.
+description: Show current GPU and resource usage on Fir, who is using H100 GPUs, and what the user can request right now. Use when checking Fir availability before submitting a job, or when the user asks what GPUs are free.
 allowed-tools: Bash(sinfo *), Bash(squeue *), Bash(sacctmgr *), Bash(seff *)
 ---
 
