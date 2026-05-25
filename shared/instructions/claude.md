@@ -7,10 +7,10 @@ This file contains Claude Code-specific instructions layered on top of the share
 Skills are invoked with `/command`:
 
 - `/slurm-status` - real-time GPU and resource availability on the cluster.
-- `/slurm-job` - create or modify sbatch scripts with correct accounts, partitions, and best practices.
+- `/slurm-job` - create or modify sbatch scripts with correct accounts, GPU profiles, and best practices.
 - `/slurm-seff-report` - retrofit a job script so it schedules a post-job `seff` usage report.
 - `/slurm-debug` - diagnose why a job failed, was killed, or is stuck pending.
-- `/submit-experiment` - submit a Slurm experiment with naming, documentation, and cross-cluster support.
+- `/submit-experiment` - submit a Slurm experiment with naming, documentation, and remote-submission support.
 - `/harvest` - discover completed experiments, collect results, and update documentation.
 - `/onboard` - set up a new lab member's Claude Code configuration.
 - `/connect` - decide local vs remote cluster operation and establish SSH access, including local machine -> Fir.
@@ -19,7 +19,7 @@ Agents are invoked with `@agent-name` or used automatically by Claude when relev
 
 - `slurm-queue` - show active, pending, and recent jobs with status and quick actions.
 - `slurm-resource` - list accounts, partitions, and GPU types you can request.
-- `slurm-storage` - scan home directory usage and suggest what to move to turbo.
+- `slurm-storage` - scan home/scratch usage and suggest what to move to $PROJECT or $SCRATCH.
 
 ## Claude-Specific Automation
 

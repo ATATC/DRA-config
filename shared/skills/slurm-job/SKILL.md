@@ -1,98 +1,42 @@
 ---
 name: slurm-job
-description: Create or modify an sbatch job script with correct partitions, accounts, GPU requests, and best-practice defaults for the current cluster.
-allowed-tools: Bash(sinfo *), Bash(sacctmgr *), Bash(whoami), Bash(hostname *), Bash(cat *), Bash(ls *), Read, Edit, Write, Glob, Grep
+description: Create or modify an sbatch job script with correct Alliance Canada (Fir) directives — account, GPU profile, resource requests, and best-practice defaults. Use when writing or editing a .sh/.slurm job script.
+allowed-tools: Bash(sinfo *), Bash(sshare *), Bash(sacctmgr *), Bash(whoami), Bash(hostname *), Bash(cat *), Bash(ls *), Read, Edit, Write, Glob, Grep
 ---
 
-# Create / Modify an Sbatch Job Script
+# Create / Modify an Sbatch Job Script (Alliance Canada)
 
-Help the user create a new sbatch job script or modify an existing one. The goal is a correct, ready-to-submit script that follows lab best practices.
+Help the user produce a correct, ready-to-submit sbatch script for an Alliance Canada cluster
+(Fir by default). For GPU sizing / break-even, MAX_TRES billing, and storage tables, consult the
+`ccdb-clusters` skill's `references/` — do not re-derive them here.
 
-## When invoked with an existing script
+## Modifying an existing script
 
-If the user points to an existing `.sh` or `.slurm` file (or pastes script content), read it and help them modify it. Common requests:
-- Change GPU type / partition / account
-- Adjust resource requests (GPUs, memory, time)
-- Fix sbatch directives
-- Add logging, conda activation, or other boilerplate
+If the user points to an existing `.sh` / `.slurm` file, read it and adjust GPU profile, account,
+resource requests, directives, or logging using the same rules below.
 
-Apply the same best practices described below when modifying.
+## Creating a new script
 
-If the injected cluster instructions indicate the job is for **Fir**, override the generic GPU-request pattern in this skill:
+### 1. Gather requirements (combine into one question)
 
-- specify the GPU only with `#SBATCH --gpus-per-node=<gpu_type>:<count>`
-- do **not** use `#SBATCH --partition`, `#SBATCH --gres`, or `#SBATCH --constraint` to choose the GPU
-- for Fir MIG jobs, use profiles such as `nvidia_h100_80gb_hbm3_1g.10gb`, `nvidia_h100_80gb_hbm3_2g.20gb`, or `nvidia_h100_80gb_hbm3_3g.40gb` directly in `--gpus-per-node`
+- What does the job do (train / infer / preprocess)?
+- GPU need → pick the **smallest Fir profile that fits**: `nvidia_h100_80gb_hbm3_1g.10gb` (10 GB),
+  `…_2g.20gb` (20 GB), `…_3g.40gb` (40 GB), or full `h100` (80 GB). Default to a MIG slice unless
+  the model needs >40 GB VRAM or the job is ≥1 day.
+- GPU count, wall time, job name, and where to save the script.
 
-## When creating a new script
-
-### 1. Gather requirements
-
-Ask the user concisely (combine into one question where possible):
-
-- **What does the job do?** (training run, inference, preprocessing, etc.)
-- **Which GPU type?** Default to L40S if they don't specify. Mention the options: L40S (fastest), A40, V100.
-- **How many GPUs?**
-- **Estimated wall time?** Suggest a reasonable default based on the task.
-- **Job name?**
-- **Where should the script be saved?**
-
-If the user already provided some of this info (e.g., "create an sbatch script for training on 2 L40S GPUs"), don't re-ask what's already clear.
-
-### 2. Detect accounts
-
-Run these commands to determine the correct `--account` for the chosen partition:
+### 2. Pick the account
 
 ```bash
 whoami
-sacctmgr show association user=$(whoami) format=account%20,partition%20,qos%40 --noheader 2>/dev/null
+sshare -U -l --parsable2 | head
 ```
 
-Mapping:
-- **spgpu2** (L40S) → use the account with `arph` QOS (owned account)
-- **spgpu** (A40), **gpu** (V100), **gpu_mig40** (A100 MIG) → use the account with `normal` QOS (general account, typically `qmei0` or similar)
+Use the `ccdb-clusters` skill's `pick-gpu-account.sh` to choose the highest-FairShare GPU account
+(it prefers RRG/RPP). Accounts look like `def-<pi>_gpu` / `rrg-<pi>_gpu`; use `def-<pi>_cpu` for
+CPU-only jobs.
 
-### 3. Generate the script
-
-Use this template as a starting point, adapting to the user's needs:
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=<job_name>
-#SBATCH --partition=<partition>
-#SBATCH --account=<account>
-#SBATCH --gres=gpu:<num_gpus>
-#SBATCH --cpus-per-task=<cpus>
-#SBATCH --mem=<memory>
-#SBATCH --time=<time>
-#SBATCH --output=logs/%x_%j.out
-#SBATCH --error=logs/%x_%j.err
-
-# --- Setup ---
-set -euo pipefail
-
-# Create log directory if needed
-mkdir -p logs
-
-# Print job info for debugging
-echo "Job ID: $SLURM_JOB_ID"
-echo "Node:   $(hostname)"
-echo "GPUs:   $SLURM_GPUS_ON_NODE"
-echo "Start:  $(date)"
-echo "---"
-
-# Activate environment
-# module load cuda  # uncomment if needed
-# conda activate <env_name>
-
-# --- Run ---
-<user_command>
-
-echo "---"
-echo "End: $(date)"
-```
-
-If the target cluster is **Fir**, use this GPU directive style instead of the generic `--gres` / `--partition` / `--constraint` pattern:
+### 3. Generate the script (Fir directive style)
 
 ```bash
 #!/bin/bash
@@ -104,67 +48,42 @@ If the target cluster is **Fir**, use this GPU directive style instead of the ge
 #SBATCH --time=<time>
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
+
+set -euo pipefail
+mkdir -p logs
+echo "Job $SLURM_JOB_ID on $(hostname) — $(date)"
+
+# module load python/3.11.5 cuda/12.6   # uncomment as needed
+# source <venv>/bin/activate
+
+<user_command>
 ```
 
-#### Resource defaults by GPU type
+**Fir GPU rule**: choose the GPU only with `--gpus-per-node=<gpu_type>:<count>`. Never use
+`--partition`, `--gres`, or `--constraint`. Match CPUs to the GPU break-even (1 / 3 / 5 / 12 for
+1g / 2g / 3g / full H100 — see `ccdb-clusters/references/clusters/fir.md`); over-requesting CPUs
+flips billing to the CPU rate.
 
-| GPU | Partition | Mem/GPU | CPUs/GPU |
-|-----|-----------|---------|----------|
-| L40S | spgpu2 | 60G | 4 |
-| A40 | spgpu | 40G | 4 |
-| V100 | gpu | 20G | 4 |
-| A100 MIG | gpu_mig40 | 60G | 4 |
+### Best practices
 
-Scale memory and CPUs proportionally for multi-GPU jobs (e.g., 2 L40S → `--mem=120G --cpus-per-task=8`).
+1. **Logs** → `logs/%x_%j.out|err` (`%x` = job name, `%j` = job id).
+2. `set -euo pipefail` at the top.
+3. Print job id / host / date so logs are debuggable.
+4. Always set `--time`; smoke-test on the smallest profile before the full run.
+5. **Storage**: write large outputs to `$SCRATCH` or `$PROJECT`, never `$HOME`. For many-small-file
+   I/O, stage to node-local `$SLURM_TMPDIR` and copy results back before the job exits — see
+   `ccdb-clusters/references/storage.md` for the recipe and the Fir `$SLURM_TMPDIR` fallback.
+   Scratch is purged (~60 days); keep durable data in `$PROJECT`.
+6. After the run, `seff <jobid>` and trim over-requested CPU / mem / time / GPU.
 
-#### Best practices to apply
+### 4. Present and remind
 
-1. **Logs**: Always set `--output` and `--error` to a `logs/` directory (or turbo path for very large/long jobs). Use `%x` (job name) and `%j` (job ID) in filenames so logs don't overwrite each other.
+Show the complete script, explain non-obvious choices, and write it to the requested path
+(default `./job.sh`). Submit with `sbatch <script>.sh`; monitor with `sq` or `sacct -j <id>`;
+cancel with `scancel <id>`.
 
-2. **`set -euo pipefail`**: Include at the top so failures are caught early.
+### Optional (only if asked)
 
-3. **Job info header**: Print `SLURM_JOB_ID`, hostname, GPU count, and timestamp so the user can debug and correlate logs.
-
-4. **Environment activation**: Include a commented-out `conda activate` or `module load` line as a reminder. If the user tells you which environment to use, uncomment and fill it in.
-
-5. **Time limit**: Always set `--time`. If the user doesn't specify, suggest a reasonable default and explain they can adjust it. Max is 14 days on most partitions.
-
-5a. **Fir GPU selection rule**: On Fir, do not emit `#SBATCH --partition`, `#SBATCH --gres`, or `#SBATCH --constraint` to choose the GPU type. Use only `#SBATCH --gpus-per-node=<gpu_type>:<count>`.
-
-6. **No home directory output**: If the job writes large outputs (checkpoints, datasets, results), direct them to turbo storage, not `~/`.
-
-7. **Scratch for I/O-heavy jobs**: If the job reads many small files or does heavy random I/O (e.g., training on large image datasets), stage data to scratch (`/scratch/<account>/<project>/<user>/`) at job start for better performance, and copy results back to turbo at job end. Include cleanup. Example pattern:
-
-   ```bash
-   SCRATCH_DIR=/scratch/${SLURM_ACCOUNT}/${USER}/${SLURM_JOB_ID}
-   mkdir -p "$SCRATCH_DIR"
-   cp -r /nfs/turbo/si-qmei/${USER}/data "$SCRATCH_DIR/"
-   # ... run job from $SCRATCH_DIR ...
-   mkdir -p /nfs/turbo/si-qmei/${USER}/results
-   cp -r "$SCRATCH_DIR/output" /nfs/turbo/si-qmei/${USER}/results/
-   rm -rf "$SCRATCH_DIR"
-   ```
-
-   Remind the user that scratch is auto-purged after 60 days of inactivity — never use it as permanent storage.
-
-8. **Multi-node / distributed**: If the user requests multiple nodes, add `--nodes`, `--ntasks-per-node`, and include `torchrun` or `srun` launcher setup as appropriate. Ask the user which distributed framework they use if unclear.
-
-### 4. Present the script
-
-Show the complete script to the user and explain any non-obvious choices. Write it to the requested path (or suggest a sensible default like `./job.sh`).
-
-Remind the user:
-- `mkdir -p logs` before first submission (or the script does it automatically)
-- Submit with: `sbatch <script_name>.sh`
-- Monitor with: `squeue -u $(whoami)` or `sacct -j <job_id>`
-- Cancel with: `scancel <job_id>`
-
-### 5. Optional enhancements
-
-Only add these if the user asks or if clearly relevant:
-
-- **Email notifications**: `#SBATCH --mail-type=END,FAIL` and `#SBATCH --mail-user=<email>`
-- **Array jobs**: `#SBATCH --array=0-N` with `$SLURM_ARRAY_TASK_ID` usage
-- **Dependency chains**: `#SBATCH --dependency=afterok:<job_id>`
-- **Checkpointing**: signal trapping for graceful shutdown and checkpoint saving
-- **Wandb / logging integration**: set `WANDB_PROJECT`, `WANDB_DIR` to turbo, etc.
+Email (`--mail-type` / `--mail-user`), array jobs (`--array` + `$SLURM_ARRAY_TASK_ID`),
+dependency chains (`--dependency=afterok:<id>`), multi-node DDP (`--nodes`,
+`--ntasks-per-node`, `srun` / `torchrun`, `MASTER_PORT`), checkpoint signal-trapping.

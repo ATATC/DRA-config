@@ -23,7 +23,7 @@ Read ~/DRA-config/README.md and install the lab config for me.
 Configure Claude Code, Codex, or both depending on what is available.
 ```
 
-The assistant should inspect this repo, detect Great Lakes/Lighthouse, write saved setup values, and run `setup.sh`.
+The assistant should inspect this repo, detect the Alliance cluster (e.g. Fir), write saved setup values, and run `setup.sh`.
 
 ## Manual Setup
 

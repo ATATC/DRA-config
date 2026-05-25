@@ -2,6 +2,7 @@
 name: slurm-queue
 description: Show the user's active, pending, and recent Slurm jobs with status, resource usage, and quick actions like cancel or check logs. Use proactively when the user asks about their jobs, queue, or what's running.
 tools: Bash, Read
+model: haiku
 ---
 
 # Slurm Job Queue

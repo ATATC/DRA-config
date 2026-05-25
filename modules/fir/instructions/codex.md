@@ -6,7 +6,7 @@
 - For Fir job scripts, specify the GPU only with `--gpus-per-node=<gpu_type>:<count>`. Do not use `--partition`, `--gres`, or `--constraint`.
 - Before running the actual job, do a smoke test on the smallest feasible profile.
 - After a job finishes, run `seff <jobid>` and reduce future requests so jobs do not ask for materially more CPU, memory, time, or GPU than they use.
-- When working on a local machine, connect to Fir with `ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca` and ask the user for their DUO passcode before starting the login.
+- When working on a local machine, connect to Fir via the `fir.alliancecan.ca` host in `~/.ssh/config` using ControlMaster (the user completes password + Duo once in their own terminal; the socket is then reused). See the `connect` skill. Do not collect the Duo passcode in chat.
 
 Once connected:
 

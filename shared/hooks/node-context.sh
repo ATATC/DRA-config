@@ -39,7 +39,7 @@ fi
 # Fallback: check hostname pattern for login nodes
 HOSTNAME="$(hostname -f 2>/dev/null || hostname)"
 
-if [[ "$HOSTNAME" =~ gl-login|lh-login|greatlakes\.arc-ts|lighthouse\.arc-ts|fir\.alliancecan\.ca|^fir ]]; then
+if [[ "$HOSTNAME" =~ \.alliancecan\.ca|^(fir|cedar|graham|narval|beluga|niagara|trillium|rorqual|killarney) ]]; then
     jq -n '{
         additionalContext: "LOGIN NODE — This is a shared login node. Do NOT run CPU/GPU/memory-intensive jobs here. Use srun/salloc for interactive compute or sbatch for batch jobs."
     }'

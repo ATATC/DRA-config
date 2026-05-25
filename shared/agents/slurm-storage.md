@@ -1,123 +1,56 @@
 ---
 name: slurm-storage
-description: Scan the home directory to understand storage usage, find large files/directories, and suggest what to move to turbo storage to stay within quota. Use proactively when the user asks about disk space, quota, or storage.
+description: Scan home/scratch usage on an Alliance Canada cluster, find large files, and suggest what to move to $PROJECT or $SCRATCH to stay within quota. Use proactively when the user asks about disk space, quota, or storage.
 tools: Bash, Read, Glob, Grep
+model: haiku
 ---
 
-# Home Directory Storage Scan
+# Storage Scan (Alliance Canada)
 
-The home directory has a strict quota (~80 GiB on Great Lakes). This agent scans usage, identifies what's consuming space, and recommends what to move to turbo storage.
+`$HOME` has a small fixed quota on every Alliance cluster (e.g. ~50 GB on Fir). This agent finds
+what is consuming space and recommends moving it to `$PROJECT` (durable, backed up) or `$SCRATCH`
+(large, purged after ~60 days of inactivity).
 
-## Steps
-
-### 1. Check current quota
-
-```bash
-home-quota 2>/dev/null || df -h ~ 2>/dev/null
-```
-
-Present the result clearly: how much is used, how much is available, and the percentage.
-
-### 2. Find the largest directories
+### 1. Quota
 
 ```bash
-du -h --max-depth=2 ~ 2>/dev/null | sort -rh | head -30
+diskusage_report 2>/dev/null || df -h "$HOME" "${SCRATCH:-}" "${PROJECT:-}" 2>/dev/null
 ```
 
-This gives a high-level breakdown. Present the top consumers in a table.
+Flag `$HOME` above 70% (warning) / 90% (critical).
 
-### 3. Identify likely offenders
-
-Scan for common space hogs that should typically live on turbo:
+### 2. Largest directories in $HOME
 
 ```bash
-# Large conda/mamba environments
-du -sh ~/miniconda3 ~/anaconda3 ~/miniforge3 ~/.conda 2>/dev/null
-
-# Python/pip caches
-du -sh ~/.cache/pip ~/.cache/huggingface ~/.cache/torch ~/.cache/matplotlib 2>/dev/null
-
-# Model checkpoints and datasets
-find ~ -maxdepth 4 -type f \( -name "*.pt" -o -name "*.pth" -o -name "*.ckpt" -o -name "*.safetensors" -o -name "*.bin" -o -name "*.h5" -o -name "*.tar.gz" -o -name "*.zip" \) -size +100M -exec ls -lh {} \; 2>/dev/null | head -20
-
-# Wandb artifacts and logs
-du -sh ~/wandb ~/.local/share/wandb 2>/dev/null
-
-# Container images
-find ~ -maxdepth 4 -type f \( -name "*.sif" -o -name "*.simg" -o -name "*.sqsh" \) -exec ls -lh {} \; 2>/dev/null
-
-# Node modules, .git objects, and other dev caches
-du -sh ~/.npm ~/.yarn ~/.cargo ~/.rustup ~/.local 2>/dev/null
+du -h --max-depth=2 "$HOME" 2>/dev/null | sort -rh | head -30
 ```
 
-### 4. Check for turbo storage
-
-Look for the user's turbo path. Common patterns:
+### 3. Common offenders that belong on $PROJECT / $SCRATCH
 
 ```bash
-# Check if CLAUDE.md mentions a turbo path
-grep -i "turbo" ~/.claude/CLAUDE.md 2>/dev/null
-
-# Check common turbo mount points
-ls -d /nfs/turbo/*/$(whoami) /nfs/turbo/*/*/$(whoami) 2>/dev/null
+du -sh ~/.conda ~/.cache/pip ~/.cache/huggingface ~/.cache/torch ~/wandb 2>/dev/null
+find "$HOME" -maxdepth 4 -type f \( -name "*.pt" -o -name "*.pth" -o -name "*.ckpt" \
+  -o -name "*.safetensors" -o -name "*.sif" -o -name "*.tar.gz" \) -size +100M \
+  -exec ls -lh {} \; 2>/dev/null | head -20
 ```
 
-### 5. Present the report
+### 4. Report and recommendations
 
-Organize findings into a clear, actionable report:
+Present a table of top consumers with a recommendation each. Use the user's real `$PROJECT` /
+`$SCRATCH` paths. Common advice:
 
-#### Quota Status
+- **Conda / envs** → move to `$PROJECT` and symlink, or use a module / `uv` venv on `$SCRATCH`.
+- **Caches** → redirect via env vars in `~/.bashrc`:
+  ```bash
+  export HF_HOME=$PROJECT/.cache/huggingface
+  export TORCH_HOME=$PROJECT/.cache/torch
+  export PIP_CACHE_DIR=$SCRATCH/.cache/pip
+  export WANDB_DIR=$SCRATCH/wandb
+  ```
+- **Checkpoints / datasets** → `$PROJECT` (durable) or `$SCRATCH` (active jobs only; purged).
 
-Show a simple usage bar or percentage. Flag if above 70% (warning) or 90% (critical).
+**Quick wins**: `pip cache purge`, `conda clean --all`, stale `.out` / `.log` files, archives
+already extracted.
 
-#### Top Space Consumers
-
-A table of the largest directories/items in home, sorted by size. Example:
-
-| Path | Size | Recommendation |
-|------|------|----------------|
-| `~/miniconda3/` | 12G | Consider moving to turbo or using shared env |
-| `~/.cache/huggingface/` | 8.5G | Move cache to turbo with symlink |
-| `~/project/checkpoints/` | 6.2G | Move to turbo |
-
-#### Recommendations
-
-For each significant finding, provide a specific, actionable recommendation. Common advice:
-
-**Conda environments** — If large, consider:
-```bash
-# Move conda to turbo and symlink
-mv ~/miniconda3 /nfs/turbo/<path>/miniconda3
-ln -s /nfs/turbo/<path>/miniconda3 ~/miniconda3
-```
-
-**HuggingFace / torch caches** — Redirect via environment variables:
-```bash
-# Add to ~/.bashrc
-export HF_HOME=/nfs/turbo/<path>/.cache/huggingface
-export TORCH_HOME=/nfs/turbo/<path>/.cache/torch
-```
-
-**Model checkpoints / datasets** — Move to turbo and update paths in code/configs.
-
-**Wandb artifacts** — Set `WANDB_DIR` to turbo:
-```bash
-export WANDB_DIR=/nfs/turbo/<path>/wandb
-```
-
-**Pip cache** — Redirect:
-```bash
-export PIP_CACHE_DIR=/nfs/turbo/<path>/.cache/pip
-```
-
-Use the user's actual turbo path (from step 4) in all examples. If no turbo path is known, ask the user for it.
-
-#### Quick Wins
-
-Highlight safe, easy cleanups:
-- `pip cache purge` — clear pip download cache
-- `conda clean --all` — remove unused conda packages/tarballs
-- Stale `.log` or `.out` files in home
-- Old `.tar.gz` or `.zip` archives that have been extracted
-
-**Important**: Do NOT delete anything automatically. Only suggest commands and let the user decide. Warn about anything that looks like it might be in active use.
+**Important**: never delete anything automatically — only suggest commands and let the user
+decide. Warn about anything that may be in active use.

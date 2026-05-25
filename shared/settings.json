@@ -9,8 +9,8 @@
       "**Trusted internal domains**: None configured",
       "**Trusted cloud buckets**: None configured",
       "**Key internal services**: None configured",
-      "[lab] Shared HPC (University of Michigan Great Lakes / Lighthouse / Alliance Fir).",
-      "[lab] Login nodes (hostname matches gl-login* or lh-login* or fir*) have only modest shared resources and are NOT for running workloads — they exist for editing, submitting jobs, and lightweight inspection.",
+      "[lab] Shared HPC config for Alliance Canada (DRAC / CCDB) clusters — Fir by default.",
+      "[lab] Login nodes (hostname ends in *.alliancecan.ca or a cluster short name like fir*) have only modest shared resources and are NOT for running workloads — they exist for editing, submitting jobs, and lightweight inspection.",
       "[lab] SLURM_JOB_ID being set means the current shell is inside a compute allocation, where arbitrary workloads are fine.",
       "[lab] The PreToolUse hook shared/hooks/node-context.sh injects the current hostname and SLURM_JOB_ID before each Bash call — use those to decide whether the request is on a login node or on a local machine."
     ],
@@ -30,7 +30,7 @@
       "[lab] On a login node, git operations, editing files, reading logs, and small (<5 s, <100 MB RAM) shell/awk/sed pipelines for formatting or config generation are fine.",
       "[lab] On a login node, anything dispatched off-node via srun/sbatch/salloc or ssh to another host is fine.",
       "[lab] On a login node, the project launcher `[uv run] python -m configs.training.submit` is fine — it only dispatches Slurm jobs and does not train locally.",
-      "[lab] Inside a SLURM allocation (SLURM_JOB_ID set) or on a laptop/local machine (hostname does not match gl-login*/lh-login*/fir*), the login-node restriction does not apply — but cluster-specific commands for Fir should be run remotely over ssh when needed."
+      "[lab] Inside a SLURM allocation (SLURM_JOB_ID set) or on a laptop/local machine (hostname does not end in *.alliancecan.ca and is not a cluster short name like fir*), the login-node restriction does not apply — but cluster-specific commands for Fir should be run remotely over ssh when needed."
     ],
     "soft_deny": [
       "Git Destructive: Force pushing (`git push --force`), deleting remote branches, or rewriting remote history",
@@ -65,7 +65,7 @@
       "External System Writes: Deleting, resolving, closing, or mass-modifying items in external collaboration tools (Jira, Asana, Linear, PagerDuty, Datadog, GitHub Issues/PRs, etc.) that the agent did not create in this session. Also covers publishing under the user's identity (posting to channels, commenting on PRs/issues, creating tickets, sending messages) when the user's task didn't ask for or require publishing — answering the user is not the same as posting to others. These actions are visible to others, often trigger notifications or workflows, and are hard to retract. \"Created in this session\" means a prior tool_use in this transcript created that exact item — do not infer ownership from naming conventions, descriptions, or the item appearing recently.",
       "Content Integrity / Impersonation: Posting, creating, or updating content that is false, fabricated, or misrepresents what actually happened — e.g. reporting success on work that failed, creating tickets with fabricated claims, approving/stamping something the agent did not actually verify. Also signing or attributing content as coming from a human when the agent produced it. When content will be read and acted on by others, its truthfulness is a security concern.",
       "Real-World Transactions: Actions with direct real-world or financial consequence outside software systems — making purchases, sending payments, booking services, placing orders, confirming subscriptions, or sending communications to real people outside the user's organization (customers, external contacts, vendors). Unless the user explicitly asked for the exact transaction, block.",
-      "[lab] On a login node (SLURM_JOB_ID unset AND hostname matches gl-login*/lh-login*/fir*), do not run any Bash command that would consume non-trivial CPU, RAM, GPU, or sustained I/O. The rule is semantic, not syntactic — judge by resource cost, not by binary name.",
+      "[lab] On a login node (SLURM_JOB_ID unset AND hostname ends in *.alliancecan.ca or matches a cluster short name like fir*), do not run any Bash command that would consume non-trivial CPU, RAM, GPU, or sustained I/O. The rule is semantic, not syntactic — judge by resource cost, not by binary name.",
       "[lab] Refuse on a login node: executing user code (python, pytest, torchrun, jupyter, node, Rscript, julia, matlab, compiled binaries that do real work), training or inference, data processing or large transforms, large archive extraction, rsync/cp of >1 GB, compilation of large codebases, anything that would pin a CPU for more than a few seconds or allocate more than a few hundred MB of RAM.",
       "[lab] When in doubt on a login node, tell the user to wrap the command in srun/sbatch/salloc or to salloc an interactive shell first."
     ]

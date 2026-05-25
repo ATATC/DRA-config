@@ -1,149 +1,98 @@
 ---
 name: onboard
-description: Onboard a lab member onto the shared Claude Code and/or Codex configuration. Detects clusters, collects Slurm account details, runs setup, and helps customize personal config.
+description: One-time setup to get a lab member onto Alliance Canada (DRAC) with the shared Claude Code and/or Codex config. Sets up SSH key access, detects the Slurm allocation account, writes saved values, and runs setup.sh.
 ---
 
-# Lab AI Coding Setup - Onboarding
+# Alliance Canada Setup — Onboarding (one-time)
 
-Help a new lab member set up the shared lab configuration for Claude Code, Codex, or both. Be friendly, concise, and beginner-friendly.
+Help a lab member do the **one-time** setup that connects this shared config (Claude Code,
+Codex, or both) to an Alliance Canada (DRAC / CCDB) cluster — Fir by default. Be concise.
+Greet with **"Welcome onboard, Foreseer!"** and explain it sets up passwordless SSH access,
+records the Slurm allocation account, and installs the lab config.
 
-Start with a greeting like: **"Welcome onboard, Foreseer!"** Then briefly explain that this setup teaches the coding assistant about the lab's cluster environment, GPU accounts, storage rules, and Slurm workflows.
+Two distinct things are needed: **(A) SSH login access** (username + a registered SSH key) and
+**(B) a Slurm allocation account** (the `--account=` value, e.g. `def-<pi>_gpu`).
 
-## Pre-flight Checks
-
-1. Check whether the user has Claude Code and/or Codex initialized:
+## Pre-flight
 
 ```bash
 ls -ld ~/.claude ~/.codex 2>/dev/null
 ```
 
-- If neither exists, ask them to run `claude` or `codex` once first, depending on what they want to use.
-- If both exist, default to configuring both.
-- If only one exists, configure that one unless the user asks otherwise.
+- If neither exists, ask the user to run `claude` or `codex` once first.
+- Configure whichever exists (default both if both exist).
+- Confirm the repo: `ls -d ~/DRA-config 2>/dev/null`; if missing:
+  ```bash
+  git clone https://github.com/ATATC/DRA-config.git ~/DRA-config
+  ```
 
-2. Check if the lab config repo is cloned at `~/DRA-config/`. If not, tell the user to clone it:
+## Step A — SSH access (one-time; skip if already on a cluster login node)
 
-```bash
-git clone https://github.com/ATATC/DRA-config.git ~/DRA-config
-```
+If `hostname -f` ends in `.alliancecan.ca`, skip to Step B. Otherwise set up key-based access
+from this local machine. **Only needed once per machine** — the `connect` skill reuses it and
+never re-uploads.
 
-3. Verify lightweight dependencies:
+1. Ensure a keypair: `ls ~/.ssh/*.pub 2>/dev/null`; if none:
+   ```bash
+   ssh-keygen -t ed25519 -C "<user-email-or-label>" -f ~/.ssh/id_ed25519
+   ```
+2. Register the PUBLIC key (one-time MFA on the website): print `cat ~/.ssh/id_ed25519.pub` and
+   have the user paste it at <https://ccdb.alliancecan.ca/ssh_authorized_keys> (CCDB → Manage
+   SSH Keys). Do not handle their password or Duo passcode.
+3. Add a `~/.ssh/config` host entry (ask for the Alliance username if it differs from local
+   `whoami`):
+   ```text
+   Host fir.alliancecan.ca
+       User <ccdb_username>
+       IdentityFile ~/.ssh/id_ed25519
+       IdentitiesOnly yes
+       ControlMaster auto
+       ControlPath ~/.ssh/cm-%r@%h:%p
+       ControlPersist 8h
+   ```
+4. Verify: `ssh fir.alliancecan.ca "hostname -f && whoami"`. A password prompt means the key
+   has not propagated yet — wait and retry.
 
-```bash
-which jq 2>/dev/null
-```
-
-`jq` is needed for Claude's statusline. If the user is configuring only Codex, missing `jq` is not blocking.
-
-## Detect Cluster and Accounts
-
-Do this proactively. Run commands yourself and present what you found.
-
-### 1. Detect username
-
-```bash
-whoami
-```
-
-### 2. Detect cluster
-
-```bash
-hostname -f
-sinfo -o "%12P %16G" --noheader 2>/dev/null | head -20
-```
-
-- If `spgpu2` exists, include Great Lakes.
-- If hostname contains `lighthouse` or `lh-login`, include Lighthouse.
-- If unclear, ask the user.
-
-### 3. Look up Slurm accounts
+## Step B — Detect the Slurm allocation account
 
 ```bash
-sacctmgr show association user=$(whoami) format=account%20,partition%20,qos%40 --noheader 2>/dev/null
+ssh fir.alliancecan.ca "whoami; sshare -U -l --parsable2 | head"
 ```
 
-For an owned account, also check the group memory cap:
+Alliance accounts look like `def-<pi>_gpu`, `rrg-<pi>_gpu` (RAC-allocated), `rpp-<pi>`. Prefer
+RRG/RPP for GPU work; use `def-<pi>_cpu` for CPU jobs. The `ccdb-clusters` skill's
+`pick-gpu-account.sh` ranks accounts by FairShare if you want it chosen automatically.
 
-```bash
-sacctmgr show association account=<owned_account> format=account%20,grptres%40 --noheader 2>/dev/null | head -5
-```
+## Step C — Confirm and save
 
-Use this reference table:
-
-| Account | Cluster | Partition(s) | GPUs | Billing |
-|---|---|---|---|---|
-| `qdj_project_owned1` | Great Lakes | spgpu2 | L40S | Prepaid/shared dynamic quota |
-| `qmei0` | Great Lakes | gpu, gpu-rtx6000, standard | V100, RTX Pro 6000 Blackwell | Prepaid |
-| `qmei3` | Great Lakes | gpu, gpu-rtx6000, standard | V100, RTX Pro 6000 Blackwell | Pay-as-you-go |
-| `qmei` | Lighthouse | qmei-a100 | A100 | Dedicated |
-
-Only present accounts for the detected cluster.
-
-## Confirm Findings
-
-Show a short summary with username, cluster, accounts, partitions, and any memory cap. Ask whether it looks right before writing config values.
-
-## Run Setup
-
-Write `~/DRA-config/build/.env.local` with only the variables for the detected cluster.
-
-For Great Lakes:
+Show a short summary (username, cluster, GPU account). After confirmation, write
+`~/DRA-config/build/.env.local`:
 
 ```bash
 # Lab Claude Config - saved template variables
-GL_USERNAME=<value>
-GL_ACCOUNT_OWNED=<value>
-GL_ACCOUNT_GENERAL=<value>
-GL_MEMORY_CAP=<value>
+FIR_USERNAME=<ccdb_username>
+FIR_ACCOUNT=<def-or-rrg account>
+FIR_GPU_TYPE=h100
 ```
 
-For Lighthouse:
+## Step D — Run setup
 
 ```bash
-# Lab Claude Config - saved template variables
-LH_USERNAME=<value>
-LH_ACCOUNT=<value>
-LH_PARTITION=<value>
-LH_GPU_COUNT=<value>
-LH_GPU_TYPE=<value>
+cd ~/DRA-config && ./setup.sh --modules fir --targets <targets> --non-interactive
 ```
 
-Then run setup from the repo:
-
-```bash
-cd ~/DRA-config && ./setup.sh --modules <modules> --targets <targets> --non-interactive
-```
-
-Examples:
-
-```bash
-# Codex only
-./setup.sh --modules greatlakes --targets codex --non-interactive
-
-# Claude Code and Codex
-./setup.sh --modules greatlakes,lighthouse --targets claude,codex --non-interactive
-```
+Examples: `--targets codex` (Codex only), `--targets claude,codex` (both).
 
 ## Post-setup
 
-Summarize what was installed:
-
-- Claude: lab block in `~/.claude/CLAUDE.md`, settings, hooks, skills, and agents.
+- Claude: lab block in `~/.claude/CLAUDE.md`, settings, hooks, skills, agents.
 - Codex: lab block in `~/.codex/AGENTS.md` and skills in `~/.codex/skills`.
-
-Ask whether they want to add personal notes outside the lab markers. Good examples:
-
-- Their turbo storage path.
-- Current project paths.
-- Language/framework preferences.
-- Personal coding conventions.
-
-Remind them:
-
-- To update: `cd ~/DRA-config && git pull && ./setup.sh --targets <targets>`
 - Personal content outside the lab markers is preserved.
-- In Codex, ask for skills by name, for example "use the slurm-status skill".
+- Update: `cd ~/DRA-config && git pull && ./setup.sh --modules fir --targets <targets>`.
+- In Codex, ask for skills by name (e.g. "use the slurm-status skill"). `/connect` re-establishes
+  SSH in later sessions without re-uploading the key.
 
-## If Setup Fails
+## If setup fails
 
-Read the error output and help debug. Common issues are missing `jq` for Claude, wrong account names, or a missing `~/.claude` / `~/.codex` directory.
+Read the error and help debug. Common issues: key not yet propagated, wrong account name, or a
+missing `~/.claude` / `~/.codex` directory. `setup.sh` is idempotent.
