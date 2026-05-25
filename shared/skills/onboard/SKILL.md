@@ -14,9 +14,9 @@ Start with a greeting like: **"Welcome onboard, Foreseer!"** followed by a brief
 
 1. Check if `~/.claude/` exists. If not, tell the user to run `claude` once first and come back.
 
-2. Check if the lab config repo is already cloned at `~/lab-claude-config/`. If not found, tell the user to clone it first:
+2. Check if the lab config repo is already cloned at `~/DRA-config/`. If not found, tell the user to clone it first:
    ```
-   git clone https://github.com/umich-foreseer/lab-claude-config.git ~/lab-claude-config
+   git clone https://github.com/ATATC/DRA-config.git ~/DRA-config
    ```
    Then come back and run `/onboard` again.
 
@@ -106,7 +106,7 @@ Use the reference table above to auto-fill account, partition, and GPU values. O
 
 ## Run setup
 
-Once you have all values, write them to `~/lab-claude-config/build/.env.local`. **Only include variables for the detected cluster** (the one the user is currently on):
+Once you have all values, write them to `~/DRA-config/build/.env.local`. **Only include variables for the detected cluster** (the one the user is currently on):
 
 For **Lighthouse**:
 ```
@@ -128,7 +128,7 @@ GL_MEMORY_CAP=<value>
 
 Then run:
 ```bash
-cd ~/lab-claude-config && ./setup.sh --modules <modules> --non-interactive
+cd ~/DRA-config && ./setup.sh --modules <modules> --non-interactive
 ```
 
 Where `<modules>` is `greatlakes`, `lighthouse`, or `greatlakes,lighthouse`.
@@ -153,7 +153,7 @@ After setup completes:
    - After editing, re-run `./setup.sh` to apply changes
 
 4. Remind them:
-   - To update: `cd ~/lab-claude-config && git pull && ./setup.sh`
+   - To update: `cd ~/DRA-config && git pull && ./setup.sh`
    - Their personal content in CLAUDE.md (outside the markers) is never touched by setup.sh
    - `/slurm-status` is now available for checking cluster status
    - Run `/connect` to set up cross-cluster SSH if you use both Great Lakes and Lighthouse

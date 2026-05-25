@@ -61,9 +61,16 @@ case "$PICK_BY" in
     *) echo "ERROR: unknown PICK_BY=$PICK_BY (expected fairshare|levelfs)" >&2; exit 2 ;;
 esac
 
-echo "$SSHARE_OUT" \
+RESULT=$(echo "$SSHARE_OUT" \
   | tail -n +2 \
   | awk -F'|' -v c=$SORT_COL '$1 ~ /_gpu$/ { print $c, $1 }' \
   | sort -rn \
   | head -1 \
-  | awk '{ print $2 }'
+  | awk '{ print $2 }')
+
+if [ -z "$RESULT" ]; then
+    echo "ERROR: no *_gpu account found in 'sshare -U -l' output (cannot pick a GPU account)" >&2
+    exit 1
+fi
+
+echo "$RESULT"

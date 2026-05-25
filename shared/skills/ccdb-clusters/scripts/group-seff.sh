@@ -26,7 +26,8 @@ printf "%-10s %-12s %-8s %-10s %-10s %-6s\n" "JobID" "State" "CPU%" "Mem%" "Wall
 printf "%-10s %-12s %-8s %-10s %-10s %-6s\n" "-----" "-----" "----" "----" "---------" "-----"
 
 sacct "${SACCT_ARGS[@]}" | awk -F'|' '
-    /\|(COMPLETED|TIMEOUT|FAILED)$/ { print $1 }
+    /\|(COMPLETED|TIMEOUT|FAILED|OUT_OF_MEMORY|NODE_FAIL|PREEMPTED)$/ { print $1 }
+    /\|CANCELLED( by [0-9]+)?$/                                      { print $1 }
 ' | while read -r jid; do
     [[ -z "$jid" ]] && continue
     seff "$jid" 2>/dev/null | awk -v jid="$jid" '

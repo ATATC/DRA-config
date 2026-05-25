@@ -28,9 +28,9 @@ partitioned into smaller virtual GPUs.
 
 | Slice | VRAM | `--gpus-per-node=` value | Break-even CPUs | Break-even Mem |
 |---|---|---|---|---|
-| 1g.10gb | 10 GB | `h100_1g.10gb:1` | 1 | ~41 GB |
-| 2g.20gb | 20 GB | `h100_2g.20gb:1` | 3 | ~82 GB |
-| 3g.40gb | 40 GB | `h100_3g.40gb:1` | 5 | ~123 GB |
+| 1g.10gb | 10 GB | `nvidia_h100_80gb_hbm3_1g.10gb:1` | 1 | ~41 GB |
+| 2g.20gb | 20 GB | `nvidia_h100_80gb_hbm3_2g.20gb:1` | 3 | ~82 GB |
+| 3g.40gb | 40 GB | `nvidia_h100_80gb_hbm3_3g.40gb:1` | 5 | ~123 GB |
 | Full H100 | 80 GB | `h100:1` (or `h100:4` for whole node) | 12 | ~288 GB |
 
 **Default to 20 GB or 40 GB** — full 80 GB is for genuine VRAM hogs or 1-day jobs.

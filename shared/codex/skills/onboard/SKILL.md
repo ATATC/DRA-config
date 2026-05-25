@@ -21,10 +21,10 @@ ls -ld ~/.claude ~/.codex 2>/dev/null
 - If both exist, default to configuring both.
 - If only one exists, configure that one unless the user asks otherwise.
 
-2. Check if the lab config repo is cloned at `~/lab-claude-config/`. If not, tell the user to clone it:
+2. Check if the lab config repo is cloned at `~/DRA-config/`. If not, tell the user to clone it:
 
 ```bash
-git clone https://github.com/umich-foreseer/lab-claude-config.git ~/lab-claude-config
+git clone https://github.com/ATATC/DRA-config.git ~/DRA-config
 ```
 
 3. Verify lightweight dependencies:
@@ -85,7 +85,7 @@ Show a short summary with username, cluster, accounts, partitions, and any memor
 
 ## Run Setup
 
-Write `~/lab-claude-config/build/.env.local` with only the variables for the detected cluster.
+Write `~/DRA-config/build/.env.local` with only the variables for the detected cluster.
 
 For Great Lakes:
 
@@ -111,7 +111,7 @@ LH_GPU_TYPE=<value>
 Then run setup from the repo:
 
 ```bash
-cd ~/lab-claude-config && ./setup.sh --modules <modules> --targets <targets> --non-interactive
+cd ~/DRA-config && ./setup.sh --modules <modules> --targets <targets> --non-interactive
 ```
 
 Examples:
@@ -140,7 +140,7 @@ Ask whether they want to add personal notes outside the lab markers. Good exampl
 
 Remind them:
 
-- To update: `cd ~/lab-claude-config && git pull && ./setup.sh --targets <targets>`
+- To update: `cd ~/DRA-config && git pull && ./setup.sh --targets <targets>`
 - Personal content outside the lab markers is preserved.
 - In Codex, ask for skills by name, for example "use the slurm-status skill".
 

@@ -37,9 +37,11 @@ Interpret the result as follows:
   - do not try to SSH to Fir again
 - Otherwise:
   - treat the machine as a **local machine / laptop**
-  - for Fir work, operate **remotely** using:
+  - for Fir work, operate **remotely** via the `fir.alliancecan.ca` host from
+    `~/.ssh/config` (set up in Step 4 with ControlMaster, so MFA is entered once
+    and the socket reused):
     ```bash
-    ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca
+    ssh fir.alliancecan.ca
     ```
 
 ## Step 2: Decide local vs remote execution
@@ -49,7 +51,7 @@ Use this rule consistently:
 - If already on the relevant cluster login node, operate **locally** there.
 - If on a local machine or laptop and the target cluster is Fir, operate **remotely** by wrapping cluster commands in:
   ```bash
-  ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca "<command>"
+  ssh fir.alliancecan.ca "<command>"
   ```
 - If on Great Lakes and the target is Lighthouse, or vice versa, operate **remotely** using the existing SSH multiplexed path described below.
 
@@ -165,31 +167,46 @@ ssh <remote-alias> "sinfo --version 2>&1"
 
 Only use this section when the current hostname does not look like Great Lakes, Lighthouse, or Fir.
 
-### 4.1 Check prerequisites
+Fir enforces Duo MFA, so a non-interactive `ssh` fails unless a connection is already multiplexed. Use a `~/.ssh/config` host entry with **ControlMaster**: the user enters their password + Duo **once** in their own terminal, then every later `ssh`/`scp`/`sbatch` reuses the socket with no prompt.
+
+### 4.1 Ensure the Fir host entry exists
 
 ```bash
-test -f ~/.ssh/id_rsa && echo "ssh key OK" || echo "ssh key MISSING"
-which ssh 2>/dev/null && echo "ssh OK" || echo "ssh MISSING"
+grep -qE "^Host[[:space:]]+fir.alliancecan.ca" ~/.ssh/config 2>/dev/null && echo "fir host OK" || echo "fir host MISSING"
 ```
 
-If `~/.ssh/id_rsa` is missing, stop and ask the user to provide the correct SSH identity first.
+If missing, add it. Replace `<fir_username>` with the user's **Alliance** username (it may differ from the local `whoami` — ask if unknown) and `<alliance_key>` with their Alliance SSH key:
 
-### 4.2 Ask for the Duo passcode before the first remote action
-
-Before any Fir login or remote Fir command, ask the user for their DUO passcode. Tell them the connection flow may prompt for it interactively.
-
-### 4.3 Connectivity test
-
-Use the exact Fir login path:
-
-```bash
-ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
+```text
+Host fir.alliancecan.ca
+    User <fir_username>
+    IdentityFile ~/.ssh/<alliance_key>
+    IdentitiesOnly yes
+    ControlMaster auto
+    ControlPath ~/.ssh/cm-%r@%h:%p
+    ControlPersist 8h
 ```
 
-If this succeeds, remote Fir operations can use the same pattern:
+### 4.2 Warm the connection once (user enters Duo in their own terminal)
+
+Check whether a multiplexed socket is already live:
 
 ```bash
-ssh -i ~/.ssh/id_rsa -Y ${USER}@fir.alliancecan.ca "<command>"
+ssh -O check fir.alliancecan.ca 2>&1
+```
+
+If it is not active, ask the user to run `ssh fir.alliancecan.ca` **in their own terminal** and complete the password + Duo prompt once. Do **not** collect the Duo passcode in chat — it is entered directly in their terminal so the control socket is established. `ControlPersist 8h` then keeps it reusable.
+
+### 4.3 Connectivity test (reuses the socket, no prompt)
+
+```bash
+ssh fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
+```
+
+If this succeeds, remote Fir operations use the same pattern:
+
+```bash
+ssh fir.alliancecan.ca "<command>"
 ```
 
 When the user is on a local machine, all Fir-specific Slurm control commands, file inspection, and submissions should be executed this way instead of being run locally.

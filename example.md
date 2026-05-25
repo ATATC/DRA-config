@@ -34,7 +34,7 @@ Then, use the `/slurm-seff-report` skill to modify the scripts to include automa
 Use the `/slurm-job` and `/slurm-debug` skills to write another script to run in an interactive session to determine the
 required resources to run the jobs. It is also good for debugging if there is any.
 
-> Write another script that performs smoke tests to determine the required resources to run the jobs, in an interactive session allocated by `salloc --account=rrg-jma --gres=gpu:h100:1 --mem=32G --cpus-per-task=8 --time=1:00:00`.
+> Write another script that performs smoke tests to determine the required resources to run the jobs, in an interactive session allocated by `salloc --account=rrg-jma --gpus-per-node=h100:1 --mem=32G --cpus-per-task=8 --time=1:00:00`.
 
 ![smoke test](assets/smoke-test.png)
 

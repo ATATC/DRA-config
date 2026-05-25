@@ -1,7 +1,7 @@
 ---
 name: ccdb-clusters
 description: "**MANDATORY** for Alliance Canada (DRAC / CCDB) HPC tasks. Prefer `$CC_CLUSTER` when available, otherwise infer the cluster from hostname and paths. Covers SLURM mechanics, modules, scratch storage, CCDB Python wheels, MAX_TRES billing, and per-cluster facts for Fir, Trillium, Rorqual, Cedar, Graham, Béluga, Narval, Niagara, and Killarney. Use whenever you see /home/<user>, /scratch, sbatch, sshare, seff, sq, /cvmfs, or are working over SSH on *.alliancecan.ca."
-allowed-tools: Bash(module *), Bash(sbatch *), Bash(salloc *), Bash(srun *), Bash(squeue *), Bash(sacct *), Bash(scontrol *), Bash(sinfo *), Bash(sshare *), Bash(seff *), Bash(df *), Bash(diskusage_report *), Bash(ls *), Bash(cat *), Bash(grep *), Bash(tail *), Read
+allowed-tools: Bash(module *), Bash(sbatch *), Bash(salloc *), Bash(srun *), Bash(squeue *), Bash(sacct *), Bash(scontrol *), Bash(sinfo *), Bash(sshare *), Bash(seff *), Bash(df *), Bash(diskusage_report *), Bash(ls *), Bash(cat *), Bash(grep *), Bash(tail *), Bash(${CLAUDE_SKILL_DIR}/scripts/*), Read
 ---
 
 # Alliance Canada Clusters — Skill Index
@@ -49,8 +49,8 @@ module load python/3.11.5 nodejs/20.16.0 cuda/12.6 cmake/3.31.0 go/1.22.5 rust/1
 
 1. **Pick the highest-FairShare account** for the job type:
    ```bash
-   scripts/show-fairshare.sh
-   sbatch --account=$(scripts/pick-gpu-account.sh) <script>
+   ${CLAUDE_SKILL_DIR}/scripts/show-fairshare.sh
+   sbatch --account=$(${CLAUDE_SKILL_DIR}/scripts/pick-gpu-account.sh) <script>
    ```
    Your accounts come from `sshare -U -l` — typically `def-<pi>_<gpu|cpu>`,
    `rrg-<pi>_<gpu|cpu>` (RAC-allocated), and `rpp-<pi>` (priority-access).
