@@ -13,6 +13,10 @@ from `sacct`, and then *regenerates* the human-readable `docs/experiments.md` in
 `metadata.yaml` files. The markdown index is a derived view — it is never parsed for truth and
 never the place a status is stored.
 
+The canonical layout + full `metadata.yaml` schema (durable vs scratch artifacts, core/optional
+fields) is defined in the `submit-experiment` skill's `references/experiment-layout.md` — follow
+that, and resolve only fields it defines.
+
 ## Arguments
 
 - no args → resolve every run whose `status` is `submitted` or `running`.

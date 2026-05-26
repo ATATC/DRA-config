@@ -91,7 +91,8 @@ git status --porcelain            # empty => clean; non-empty => dirty
 
 Record both. If the working tree is **dirty**, warn the user in Step 6 — the recorded commit
 will not fully reproduce the run unless they commit first. (Record `dirty: true`; never claim a
-clean provenance when it is not.)
+clean provenance when it is not.) When dirty, you will also save the working-tree diff to the run
+folder in Step 7 (`git.diff`) so the run stays reproducible.
 
 ## Step 6 — Confirm (the gate)
 
@@ -102,35 +103,50 @@ model-invocable by design — the gate, not metadata, prevents unwanted submits)
 
 ## Step 7 — Create the run folder + write metadata.yaml
 
+The canonical layout + full `metadata.yaml` schema (with a complete example) is in
+`references/experiment-layout.md`. Snapshot the small, durable inputs; **reference** (don't copy)
+the large scratch artifacts (checkpoints / tensorboard / wandb).
+
 ```bash
 RUN_DIR="experiment/<run_code>"
 mkdir -p "$RUN_DIR"
-cp "$2" "$RUN_DIR/config.yaml"            # snapshot the config
-cp "<job_script>" "$RUN_DIR/slurm.sh"     # snapshot the submit script (if separate)
+cp "$2" "$RUN_DIR/config.yaml"                          # input config snapshot
+[ -f <resolved_config> ] && cp <resolved_config> "$RUN_DIR/config_resolved.yaml"  # resolved config, if produced
+cp <job_script> "$RUN_DIR/"                             # submit script(s): smoke / train / local
+[ "<dirty>" = true ] && git diff > "$RUN_DIR/git.diff"  # save diff so a dirty run is reproducible
 ```
 
-Write `$RUN_DIR/metadata.yaml` (the SSOT):
+Write `$RUN_DIR/metadata.yaml`. **Core + reproducibility** (always sensible):
 
 ```yaml
 run_code: <run_code>
 status: submitted          # submitted|running|completed|failed|timeout|cancelled|oom
 tags: [<job_type>, <descriptor>, <keywords>]
-parent_run: null           # set to a prior run_code if this forks one (lineage)
 cluster: fir
 account: <account>
 git:
   commit: <full SHA>
   dirty: true|false
-slurm_job_ids: []          # filled in Step 8
+  diff_path: git.diff|null       # set when dirty
+slurm_job_ids: []                # filled in Step 8
 started_at: <ISO 8601>
 finished_at: null
 objective:
   goal: <one-line goal>
   expected_result: { metric: <name>, value: <number>, rationale: <why> }
 decision_rule: <what each outcome (above/at/below expected) will mean>
-notes: <free text — purpose, key hyperparameters, anything for a human reader>
-best_metric: { name: null, value: null }
+best_metric: { name: null, value: null, epoch: null }
+notes: <free text — purpose, key hyperparameters>
+# reproducibility — fill what applies:
+base_checkpoint: { path: <path>, sha256: <hash> }
+data_split_version: <tag>
+env_hash: <hash>
+wandb_run_id: <id|null>
 ```
+
+**Optional scientific / lineage fields** — `parent_run`, `superseded_by`, `stage`, `base`,
+`hypothesis`, `assumptions`, `objective.expected_intermediate_signals` — add as the work warrants;
+the complete annotated example is in `references/experiment-layout.md`.
 
 ## Step 8 — Submit
 
