@@ -1,6 +1,6 @@
 ---
 name: harvest
-description: Discover finished SLURM experiments, resolve their final status from sacct, update each run's metadata.yaml, and write a human-readable results narrative in the project's style. Use to collect results after jobs run.
+description: Discover finished SLURM experiments, resolve their final status from sacct, update each run's metadata.yaml, and write a human-readable results narrative in the project's style. Asks for confirmation before writing (skip with --auto, safe for /loop). Use to collect results after jobs run.
 argument-hint: "[--auto] [run_code]"
 allowed-tools: Bash(sacct *), Bash(scontrol *), Bash(squeue *), Bash(ssh *), Bash(ls *), Bash(tail *), Bash(cat *), Bash(jq *), Bash(find *), Bash(date *), Bash(hostname *), Read, Edit, Write, Glob, Grep
 ---

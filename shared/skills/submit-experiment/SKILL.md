@@ -1,6 +1,6 @@
 ---
 name: submit-experiment
-description: Submit a SLURM experiment on Alliance Canada (Fir) with a per-run folder, a metadata.yaml single source of truth (status + git provenance + objective), and a config/script snapshot. Use when launching a tracked experiment.
+description: Submit a SLURM experiment on Alliance Canada (Fir) with a per-run folder, a metadata.yaml single source of truth (status + git provenance + objective), and a config/script snapshot. Infers the objective/decision_rule and waits for explicit user confirmation — will not write or sbatch until you confirm the draft. Use when launching a tracked experiment.
 argument-hint: "<job_type> <run_config_or_script> [purpose description]"
 allowed-tools: Bash(sbatch *), Bash(salloc *), Bash(srun *), Bash(seff *), Bash(squeue *), Bash(tail *), Bash(ssh *), Bash(git *), Bash(ls *), Bash(cat *), Bash(cp *), Bash(mkdir *), Bash(hostname *), Bash(date *), Read, Edit, Write, Glob, Grep
 ---
