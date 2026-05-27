@@ -55,58 +55,58 @@ REPORT_DIR="${SLURM_SUBMIT_DIR:-$PWD}/logs"
 mkdir -p "$REPORT_DIR"
 USAGE_REPORT="${REPORT_DIR}/${SLURM_JOB_NAME:-job}_${SLURM_JOB_ID}_usage.txt"
 
-# Job's own cgroup path (cgroup v2; /proc/self/cgroup line begins "0::/...")
+# Resolve the job's own cgroup-v2 path (the "0::/..." line in /proc/self/cgroup)
 JOB_CG=$(awk -F: '/^0::/{print $3; exit}' /proc/self/cgroup 2>/dev/null)
 
-# Peak memory (bytes) — kernel-tracked, accurate at read time
-MEM_PEAK="unavailable"
-if [ -n "$JOB_CG" ] && [ -r "/sys/fs/cgroup${JOB_CG}/memory.peak" ]; then
+# Peak memory in bytes and total CPU microseconds (both kernel-tracked continuously)
+MEM_PEAK="unavailable"; CPU_USEC="unavailable"
+[ -n "$JOB_CG" ] && [ -r "/sys/fs/cgroup${JOB_CG}/memory.peak" ] && \
   MEM_PEAK=$(cat "/sys/fs/cgroup${JOB_CG}/memory.peak")
-fi
-
-# Total CPU time (microseconds across all task threads)
-CPU_USEC="unavailable"
-if [ -n "$JOB_CG" ] && [ -r "/sys/fs/cgroup${JOB_CG}/cpu.stat" ]; then
+[ -n "$JOB_CG" ] && [ -r "/sys/fs/cgroup${JOB_CG}/cpu.stat" ] && \
   CPU_USEC=$(awk '/^usage_usec/{print $2}' "/sys/fs/cgroup${JOB_CG}/cpu.stat")
-fi
 
-WALL_SEC="${SECONDS:-unavailable}"
-
-{
-  echo "Slurm job usage report"
-  echo "  Job ID    : ${SLURM_JOB_ID}"
-  echo "  Job name  : ${SLURM_JOB_NAME:-?}"
-  echo "  Generated : $(date -Iseconds)"
-  echo "  Host      : $(hostname)"
-  echo
-  echo "== Resources requested =="
-  echo "  --cpus-per-task  : ${SLURM_CPUS_PER_TASK:-?}"
-  echo "  --mem (per node) : ${SLURM_MEM_PER_NODE:-?} MB"
-  echo "  --gpus-per-node  : ${SLURM_GPUS_PER_NODE:-?}"
-  echo
-  echo "== Cgroup measurements (kernel-direct; accurate at end of script) =="
-  if [ "$MEM_PEAK" != "unavailable" ]; then
-    awk -v b="$MEM_PEAK" 'BEGIN{ printf "  Peak memory      : %s bytes (%.2f GB)\n", b, b/1024/1024/1024 }'
-    if [ -n "$SLURM_MEM_PER_NODE" ]; then
-      awk -v p="$MEM_PEAK" -v r="$SLURM_MEM_PER_NODE" \
-        'BEGIN{ printf "  Memory efficiency: %.1f%% of requested\n", p/(r*1024*1024)*100 }'
-    fi
-  else
-    echo "  Peak memory      : unavailable (cgroup v1 / EL7 cluster?)"
-  fi
-  echo "  CPU time         : ${CPU_USEC} us"
-  echo "  Wall time        : ${WALL_SEC} s"
-  if [ "$CPU_USEC" != "unavailable" ] && [ -n "$SLURM_CPUS_PER_TASK" ] \
-     && [ "$WALL_SEC" != "unavailable" ] && [ "$WALL_SEC" -gt 0 ]; then
-    awk -v c="$CPU_USEC" -v w="$WALL_SEC" -v n="$SLURM_CPUS_PER_TASK" \
-      'BEGIN{ printf "  CPU efficiency   : %.1f%% of (wall * n_cpus)\n", c/(w*1000000*n)*100 }'
-  fi
-  echo
-  echo "Note: cgroup numbers are kernel-direct. For finalized post-completion accounting"
-  echo "(incl. GPU efficiency, which cgroup does not expose), run after the job exits:"
-  echo "  seff ${SLURM_JOB_ID}"
-} > "${USAGE_REPORT}" 2>&1
-echo "Usage report -> ${USAGE_REPORT}"
+# Format the report in seff-like style: GB / HH:MM:SS / efficiency lines
+awk -v jid="$SLURM_JOB_ID" -v jname="${SLURM_JOB_NAME:-?}" \
+    -v host="$(hostname)" -v gen="$(date -Iseconds)" \
+    -v cpus="${SLURM_CPUS_PER_TASK:-1}" -v mem_req_mb="${SLURM_MEM_PER_NODE:-0}" \
+    -v gpu_req="${SLURM_GPUS_PER_NODE:-?}" \
+    -v mem_peak="$MEM_PEAK" -v cpu_usec="$CPU_USEC" -v wall_sec="${SECONDS:-0}" \
+'function hms(s,    h,m,ss){ h=int(s/3600); m=int((s%3600)/60); ss=int(s%60);
+  return sprintf("%02d:%02d:%02d", h, m, ss) }
+ BEGIN{
+  print "Slurm job usage report (cgroup-direct, end-of-script)"
+  printf "  Job ID    : %s\n  Job name  : %s\n  Host      : %s\n  Generated : %s\n\n", \
+    jid, jname, host, gen
+  print "== Resources requested =="
+  printf "  --cpus-per-task : %s\n  --mem (per node): %s MB\n  --gpus-per-node : %s\n\n", \
+    cpus, mem_req_mb, gpu_req
+  print "== Cgroup measurements (kernel-direct; accurate at end of script) =="
+  if (mem_peak == "unavailable") {
+    print "  Memory Utilized  : unavailable (cgroup v1 / EL7 cluster?)"
+  } else {
+    mb = mem_peak/1048576; gb = mb/1024
+    if (gb >= 1) printf "  Memory Utilized  : %.2f GB\n", gb
+    else         printf "  Memory Utilized  : %.2f MB\n", mb
+    if (mem_req_mb+0 > 0)
+      printf "  Memory Efficiency: %.1f%% of %.2f GB (requested)\n", mb/mem_req_mb*100, mem_req_mb/1024
+  }
+  if (cpu_usec == "unavailable") {
+    print "  CPU Utilized     : unavailable"
+  } else {
+    printf "  CPU Utilized     : %s\n", hms(cpu_usec/1000000)
+  }
+  if (wall_sec+0 > 0) printf "  Wall-clock time  : %s\n", hms(wall_sec)
+  if (cpu_usec != "unavailable" && wall_sec+0 > 0 && cpus+0 > 0) {
+    cw  = wall_sec * cpus
+    eff = (cpu_usec/1000000) / cw * 100
+    printf "  CPU Efficiency   : %.2f%% of %s core-walltime (wall * %s cpus)\n", eff, hms(cw), cpus
+  }
+  print ""
+  print "Note: cgroup numbers are kernel-direct (no sacct dependency). For finalized"
+  print "post-completion accounting including GPU efficiency, run after the job exits:"
+  printf "  seff %s\n", jid
+}' > "$USAGE_REPORT"
+echo "Usage report -> $USAGE_REPORT"
 # ---- End usage report ----
 ```
 
