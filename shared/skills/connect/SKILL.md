@@ -36,8 +36,8 @@ grep -qE "^Host[[:space:]]+fir.alliancecan.ca" ~/.ssh/config && echo "host OK" |
 **If MISSING** → the one-time setup hasn't been done. Stop and tell the user to run `/onboard`
 (generates/uploads the key, writes the host entry). Don't generate keys or collect passwords/Duo here.
 
-**If host OK**, check the ControlMaster socket — this is the key step. Fir requires **Duo 2FA on
-every fresh login**, so the agent can only connect when a warm socket already exists:
+**If host OK**, prefer a persistent ControlMaster socket where supported. Fir requires **Duo 2FA
+on every fresh login**, so a warm socket is the most stable path on Unix-like hosts:
 
 ```bash
 ssh -O check fir.alliancecan.ca 2>&1   # "Master running (pid=...)" = socket live
@@ -47,10 +47,10 @@ ssh -O check fir.alliancecan.ca 2>&1   # "Master running (pid=...)" = socket liv
   ```bash
   ssh fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
   ```
-- **No master / socket expired** (ControlPersist elapsed, or first connect this session) → the
-  agent has no tty for the passphrase/Duo, so default to **Mode B** (agent-driven): bring the
-  socket up yourself and have the user approve the Duo push on their phone. Tell the user a push
-  is coming, then run:
+- **No master / socket expired** on a Unix-like host (ControlPersist elapsed, or first connect this
+  session) → the agent has no tty for the passphrase/Duo, so default to **Mode B** (agent-driven):
+  bring the socket up yourself and have the user approve the Duo push on their phone. Tell the user
+  a push is coming, then run:
   ```bash
   ${CLAUDE_SKILL_DIR}/scripts/warm-socket.sh fir.alliancecan.ca
   ```
@@ -65,7 +65,48 @@ ssh -O check fir.alliancecan.ca 2>&1   # "Master running (pid=...)" = socket liv
   rejected (`Permission denied (publickey)` **before** any Duo prompt). For key/format problems
   see the onboard skill's `references/fir-ssh-setup.md`.
 
-Once the socket is live, run all Fir Slurm control, file inspection, and submissions remotely:
+### Windows / Codex fallback: select Duo Push with SSH_ASKPASS
+
+On Windows, `ssh -O check` may report `No ControlPath specified`, `Not a socket`, or another
+ControlMaster failure. Use the bundled askpass helper to select **Duo Push** automatically. The
+helper never approves the second factor: tell the user that a push is coming, and they must approve
+it on their own device. Never ask for a Duo passcode in chat.
+
+Resolve the helper from the user's Codex home so the command is portable across Windows accounts:
+
+```powershell
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+$env:SSH_ASKPASS = Join-Path $codexHome 'skills\connect\scripts\fir-duo-push-askpass.cmd'
+$env:SSH_ASKPASS_REQUIRE = 'force'
+$env:DISPLAY = 'codex'
+ssh -o ControlMaster=no -o ControlPath=none fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
+```
+
+`ControlMaster=no` and `ControlPath=none` deliberately bypass stale or incompatible socket settings.
+The helper returns an empty response to password and key-passphrase prompts, so an encrypted key
+must already be unlocked in `ssh-agent`; otherwise use Mode A in a separate terminal.
+
+Without working multiplexing, every independent SSH connection can trigger another Duo push. Batch
+related commands into one connection:
+
+```powershell
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+$env:SSH_ASKPASS = Join-Path $codexHome 'skills\connect\scripts\fir-duo-push-askpass.cmd'
+$env:SSH_ASKPASS_REQUIRE = 'force'
+$env:DISPLAY = 'codex'
+@'
+hostname -f
+whoami
+squeue -u $(whoami)
+'@ | ssh -o ControlMaster=no -o ControlPath=none fir.alliancecan.ca bash -s
+```
+
+Avoid parallel `ssh` or `scp` calls from Windows when multiplexing is unavailable or unreliable.
+Each connection may send a separate push and can time out while waiting for approval.
+
+Once the connection path is established, run all Fir Slurm control, file inspection, and
+submissions remotely. Reuse a live socket where supported; on Windows use the askpass and bypass
+flags above:
 
 ```bash
 ssh fir.alliancecan.ca "<command>"
