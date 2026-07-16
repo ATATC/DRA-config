@@ -65,6 +65,9 @@ ssh -O check fir.alliancecan.ca 2>&1   # "Master running (pid=...)" = socket liv
   rejected (`Permission denied (publickey)` **before** any Duo prompt). For key/format problems
   see the onboard skill's `references/fir-ssh-setup.md`.
 
+On macOS or Linux, continue using the ControlMaster flow above and skip the Windows-specific
+fallback below.
+
 ### Windows / Codex fallback: select Duo Push with SSH_ASKPASS
 
 On Windows, `ssh -O check` may report `No ControlPath specified`, `Not a socket`, or another
