@@ -236,7 +236,11 @@ encrypted key that is not already in `ssh-agent`.
 
 ```powershell
 $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
-$env:SSH_ASKPASS = Join-Path $codexHome 'skills\connect\scripts\fir-duo-push-askpass.cmd'
+$askpassPath = Join-Path $codexHome 'skills\connect\scripts\fir-duo-push-askpass.cmd'
+if (-not (Test-Path -LiteralPath $askpassPath -PathType Leaf)) {
+    throw "SSH askpass helper not found: $askpassPath"
+}
+$env:SSH_ASKPASS = $askpassPath
 $env:SSH_ASKPASS_REQUIRE = 'force'
 $env:DISPLAY = 'codex'
 ssh -o ControlMaster=no -o ControlPath=none fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
