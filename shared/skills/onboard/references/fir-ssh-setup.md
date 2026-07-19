@@ -13,6 +13,7 @@ an encrypted (passphrase) key, a Windows host, agent-driven login, or a connecti
 - Place into `~/.ssh` and set permissions
 - Write `~/.ssh/config`
 - First login: Mode A (user) vs Mode B (agent-driven)
+- Windows / Codex Duo Push fallback
 - Verify & reuse the connection
 - Security checklist
 - Troubleshooting
@@ -26,21 +27,28 @@ Logging in to Fir needs two interactive things an agent handles worst:
 1. **The private-key passphrase** — most keys are encrypted and need a password to unlock.
 2. **Duo 2FA** — an interactive menu, then the user must **approve a push on their phone**.
 
-An agent's shell usually has **no tty and no `ssh-askpass`**, so it cannot type the passphrase or
-the Duo choice. You'll see `ssh_askpass: exec(/usr/bin/ssh-askpass): No such file or directory`.
+An agent's shell usually has **no tty and no system `ssh-askpass`**, so it cannot type the
+passphrase or Duo choice unaided. You'll see
+`ssh_askpass: exec(/usr/bin/ssh-askpass): No such file or directory`. DRA-config includes a narrow
+Windows helper that can select Duo Push; the user still approves the push on their own device.
 
 **Key fact for Fir:** a registered public key is only **factor 1**. Even when the server accepts
 the key (`Authenticated using "publickey" with partial success`), Fir still requires **factor 2**
 (`keyboard-interactive` = Duo). A registered key does **not** give passwordless login. The only way
-to get passwordless *reuse* is **ControlMaster**: the user completes the 2FA login **once**
-interactively, the socket persists (`ControlPersist`), and the agent reuses it.
+to get passwordless *reuse* on supported platforms is **ControlMaster**: the user completes the 2FA
+login **once** interactively, the socket persists (`ControlPersist`), and the agent reuses it. When
+Windows multiplexing is unavailable or unreliable, each new connection requires Duo; the bundled
+helper only selects Duo Push and never approves it.
 
 | | Mode A: user logs in | Mode B: agent-driven login |
 |---|---|---|
 | Who types the passphrase | The user | The user passes it to the agent (exposure risk) — but if the key is in `ssh-agent`, none is needed |
 | Who approves Duo | The user (phone) | The user (phone) |
 | Security | High — password never touches the agent | High *iff* the key is in `ssh-agent` (no secret crosses the session); lower if a passphrase must be supplied → rotate after |
-| When to use | Safe fallback; **default for Codex** (sandbox has no tty/network for Mode B) | **DRA-config default for the Claude `connect` flow** — automated by `connect/scripts/warm-socket.sh` (fail-loud; falls back to Mode A) |
+| When to use | Safe fallback when askpass is unavailable or the key is locked | **DRA-config default for the Claude `connect` flow** via `warm-socket.sh` |
+
+The Windows/Codex fallback below is a separate, passphrase-free askpass path: it returns an empty
+response for key passphrases and only selects a recognized Duo Push option.
 
 **Hard rules:** never ask for the passphrase (only use it if the user picks Mode B and offers it);
 the Duo factor is **always** approved by the user on their own device — never try to bypass it; only
@@ -159,9 +167,10 @@ chmod 600 ~/.ssh/config
 ```
 
 You may also add a short `Host fir` alias (same options, `HostName fir.alliancecan.ca`) for
-convenience. **Windows note:** Win32-OpenSSH does **not** support `ControlMaster`/`ControlPath`.
-On Windows, remove the three `Control*` lines and instead keep one interactive `ssh` terminal open
-and work inside it (every new connection otherwise re-triggers Duo).
+convenience. **Windows note:** multiplexing may be unavailable or unreliable. If `ssh -O check`
+reports `No ControlPath specified`, `Not a socket`, or another socket error, bypass it with
+`-o ControlMaster=no -o ControlPath=none` and use the bundled askpass fallback below. Every new
+connection otherwise re-triggers Duo, so batch related commands.
 
 ---
 
@@ -218,6 +227,29 @@ shred -u /tmp/fir_askpass.sh 2>/dev/null || rm -f /tmp/fir_askpass.sh; rm -f /tm
 Then advise the user to **rotate the passphrase** (it passed through the session):
 `ssh-keygen -p -f ~/.ssh/<KEY>`.
 
+### Windows / Codex — select Duo Push with the bundled helper
+
+The helper is installed with the `connect` skill. Resolve it through `$CODEX_HOME` when set, or the
+user's home directory otherwise. It returns `1` only for recognized Duo menu prompts and returns an
+empty response for password, key-passphrase, and unknown prompts. It therefore cannot unlock an
+encrypted key that is not already in `ssh-agent`.
+
+```powershell
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+$askpassPath = Join-Path $codexHome 'skills\connect\scripts\fir-duo-push-askpass.cmd'
+if (-not (Test-Path -LiteralPath $askpassPath -PathType Leaf)) {
+    throw "SSH askpass helper not found: $askpassPath"
+}
+$env:SSH_ASKPASS = $askpassPath
+$env:SSH_ASKPASS_REQUIRE = 'force'
+$env:DISPLAY = 'codex'
+ssh -o ControlMaster=no -o ControlPath=none fir.alliancecan.ca "hostname -f && whoami && sinfo --version 2>&1"
+```
+
+Tell the user before running the command: automation selects **Duo Push**, but only the user can
+approve it on their device. Never request a Duo passcode in chat. Batch follow-up work into a
+single SSH connection because each independent Windows connection can send a new push.
+
 ---
 
 ## Verify & reuse the connection
@@ -229,9 +261,13 @@ ssh fir.alliancecan.ca 'diskusage_report'       # quota / storage
 ssh -O exit fir.alliancecan.ca                  # tear down the multiplexed connection
 ```
 
+On Windows without working multiplexing, use the askpass command above for verification and retain
+the stale-socket bypass flags. A successful response containing the Fir hostname, Alliance username,
+and Slurm version verifies the complete path.
+
 When `ControlPersist` expires (8h here) the socket closes automatically; the user logs in again per
-Mode A to re-warm it. **An agent that needs a cold socket must ask the user to re-login — it cannot
-complete Duo itself.**
+Mode A to re-warm it. On Windows, the agent may initiate the askpass connection after warning the
+user, but **the user must approve the push; the agent cannot complete Duo itself.**
 
 ---
 
@@ -256,7 +292,7 @@ complete Duo itself.**
 | Duo never arrives / times out | Check Duo app network; re-select `1` to resend; confirm MFA enrollment in CCDB. |
 | `WARNING: connection is not using a post-quantum key exchange` | Harmless, ignore. |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | Host key changed. If expected: `ssh-keygen -R fir.alliancecan.ca`, reconnect. |
-| Repeated Duo prompts on Windows | Win32-OpenSSH has no multiplexing — keep one interactive terminal open. |
+| Repeated Duo prompts on Windows | Multiplexing is unavailable or unreliable — use askpass, batch commands into one connection, and expect each independent connection to send a new push. |
 
 ---
 
